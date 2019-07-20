@@ -1792,6 +1792,15 @@ Pars$wOthers_scale <- inv_logit_scaled(Pars$wOthers + Pars$bConfidence, 0.5, 1)
 Pars$wOthersLowConf_scale <- inv_logit_scaled(Pars$wOthers + (Pars$bConfidence*0.5), 0.5, 1)
 Pars$aSelf_scale <- exp(Pars$aSelf)
 Pars$aOthers_scale <- exp(Pars$aOthers)
+
+### AnhedoniHallucinations
+loo_compare(circular_schizophrenia_m, circular_AnhedoniaHallucinations_m)
+loo_model_weights(circular_schizophrenia_m, circular_AnhedoniaHallucinations_m)
+summary(circular_AnhedoniaHallucinations_m)
+hypothesis(circular_AnhedoniaHallucinations_m,"wSelf_AnhedoniaS > 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"wOthers_AnhedoniaS < 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"aSelf_AnhedoniaS > 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"aOthers_AnhedoniaAnhedoniaAnhedoniaS < 0")
 ```
 
 # Control analyses

@@ -10,7 +10,7 @@ brm_fit_code <- function (formula, data, code, family = gaussian(), prior = NULL
                           inits = "random", chains = 4, iter = 2000, warmup = floor(iter/2), 
                           thin = 1, cores = getOption("mc.cores", 1L), control = NULL, 
                           algorithm = c("sampling", "meanfield", "fullrank"), future = getOption("future", 
-                                                                                                 FALSE), silent = TRUE, seed = NA, save_model = NULL, 
+                                                                FALSE), silent = TRUE, seed = NA, save_model = NULL, 
                           save_dso = TRUE, file = NULL, ...) 
 {
     dots <- list(...)
