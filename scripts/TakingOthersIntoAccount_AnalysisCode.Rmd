@@ -63,7 +63,10 @@ transform_logit <- function(x, lower = 0.1, upper = 0.9) {
     return(logit(x))
 }
 
-full_data = read_csv("data/data.csv") 
+full_data = read_csv("data/data.csv") %>% mutate(
+  AnhedoniaS = scale(Anhedonia),
+  HallucinationsS = scale(Hallucinations)
+)
 
 ```
 
@@ -1359,6 +1362,69 @@ circular_AnhedoniaHallucinations_m = fit_brm(circular_AnhedoniaHallucinations_f,
                control = STAN_CONTROL)
 
 circular_AnhedoniaHallucinations_m <- add_criterion(circular_AnhedoniaHallucinations_m,criterion=c("waic","loo","R2"), file = "models/circular_AnhedoniaHallucinations_m")
+
+## Plus PSP
+circular_AnhedoniaHallucinationsPSP_f = bf(ChoiceRed ~ bias + 
+                   F(0, lSelf + I, wSelf) +
+                   F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
+                   F(0, lOthers2noC + I, wOthers + bConfidence * Confidence2) +
+                   F(0, lOthers3noC + I, wOthers + bConfidence * Confidence3) +
+                   F(0, lOthers4noC + I, wOthers + bConfidence * Confidence4),
+               wSelf + wOthers + aSelf + aOthers + bConfidence ~ 1 + AnhedoniaS + HallucinationsS + PSPs_schizo + (1|p|Participant),
+               bias ~ 1 + (1|Participant),
+               nlf(I ~ F(aSelf, lSelf, wSelf) +
+                          F(aOthers, lOthers1noC, wOthers + bConfidence * Confidence1) +
+                          F(aOthers, lOthers2noC, wOthers + bConfidence * Confidence2) +
+                          F(aOthers, lOthers3noC, wOthers + bConfidence * Confidence3) +
+                          F(aOthers, lOthers4noC, wOthers + bConfidence * Confidence4)),
+               nl = TRUE)
+
+circular_prior = c(
+  prior(normal(0,.3), nlpar = "wSelf"),
+  prior(normal(0,.3), nlpar = "wOthers"),
+  prior(normal(0,.3), nlpar = "aSelf"),
+  prior(normal(0,.3), nlpar = "aOthers"),
+  prior(normal(0,.1), nlpar = "bias"),
+  prior(normal(1,.2), nlpar = "bConfidence"),
+  prior(normal(1,1.5), nlpar = "wSelf", coef = "Intercept"),
+  prior(normal(1,1.5), nlpar = "wOthers", coef = "Intercept"),
+  prior(normal(0,1.5), nlpar = "aSelf", coef = "Intercept"),
+  prior(normal(0,1.5), nlpar = "aOthers", coef = "Intercept"),
+  prior(normal(0,.2), coef="AnhedoniaS", nlpar = "wSelf"),
+  prior(normal(0,.2), coef="AnhedoniaS", nlpar = "wOthers"),
+  prior(normal(0,.2), coef="AnhedoniaS", nlpar = "aSelf"),
+  prior(normal(0,.2), coef="AnhedoniaS", nlpar = "aOthers"),
+  prior(normal(0,.2), coef="AnhedoniaS", nlpar = "bConfidence"),
+  prior(normal(0,.2), coef="HallucinationsS", nlpar = "wSelf"),
+  prior(normal(0,.2), coef="HallucinationsS", nlpar = "wOthers"),
+  prior(normal(0,.2), coef="HallucinationsS", nlpar = "aSelf"),
+  prior(normal(0,.2), coef="HallucinationsS", nlpar = "aOthers"),
+  prior(normal(0,.2), coef="HallucinationsS", nlpar = "bConfidence"),
+  prior(normal(0,.2), coef="PSPs_schizo", nlpar = "wSelf"),
+  prior(normal(0,.2), coef="PSPs_schizo", nlpar = "wOthers"),
+  prior(normal(0,.2), coef="PSPs_schizo", nlpar = "aSelf"),
+  prior(normal(0,.2), coef="PSPs_schizo", nlpar = "aOthers"),
+  prior(normal(0,.2), coef="PSPs_schizo", nlpar = "bConfidence"),
+  prior(normal(0, .2), nlpar = "wSelf",class="sd"),
+  prior(normal(0, .2), nlpar = "wOthers",class="sd"),
+  prior(normal(0, .2), nlpar = "aSelf",class="sd"),
+  prior(normal(0, .2), nlpar = "aOthers",class="sd"),
+  prior(normal(0, .2), nlpar = "bConfidence",class="sd"),
+  prior(normal(0, .2), nlpar = "bias",class="sd"),
+  prior_("lkj(8)", class = "cor"))
+
+d <- subset(full_data,Diagnosis==1)
+circular_AnhedoniaHallucinationsPSP_m = fit_brm(circular_AnhedoniaHallucinationsPSP_f,
+               d,
+               stan_funs = F_stancode,
+               prior = circular_prior,
+               sample_prior = TRUE,
+               family = "bernoulli", 
+               file = "models/circular_AnhedoniaHallucinationsPSP_m",
+               chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
+               control = STAN_CONTROL)
+
+circular_AnhedoniaHallucinationsPSP_m <- add_criterion(circular_AnhedoniaHallucinationsPSP_m,criterion=c("waic","loo","R2"), file = "models/circular_AnhedoniaHallucinationsPSP_m")
 ```
 
 ## Model comparisons and hypothesis testing to assess the role of clinical and cognitive features
@@ -1383,6 +1449,26 @@ circular_Avolition_m <- readRDS("models/circular_Avolition_m.rds")
 circular_Anhedonia_m <- readRDS("models/circular_Anhedonia_m.rds")
 circular_Attention_m <- readRDS("models/circular_Attention_m.rds")
 
+
+circular_AnhedoniaHallucinations_m <- readRDS("models/circular_AnhedoniaHallucinations_m.rds")
+circular_AnhedoniaHallucinationsPSP_m <- readRDS("models/circular_AnhedoniaHallucinationsPSP_m.rds")
+
+loo_compare(circular_schizophrenia_m,circular_IQ_m,circular_WM_m,circular_IED_m,circular_CPZ_m)
+# circular_schizophrenia_m  0.0       0.0   
+# circular_CPZ_m           -2.7       2.6   
+# circular_IED_m           -2.7       2.5   
+# circular_WM_m            -2.9       2.6   
+# circular_IQ_m            -3.1       3.1  
+loo_model_weights(circular_schizophrenia_m,circular_IQ_m,circular_WM_m,circular_IED_m,circular_CPZ_m)
+
+
+loo_compare(circular_schizophrenia_m,circular_Flattening_m,circular_SANS_m,circular_Anhedonia_m,circular_Avolition_m,circular_Attention_m)
+# circular_schizophrenia_m  0.0       0.0   
+# circular_Anhedonia_m     -1.4       2.6   
+# circular_SANS_m          -2.0       2.6   
+# circular_Avolition_m     -2.2       2.6   
+# circular_Flattening_m    -2.6       2.6   
+# circular_Attention_m     -2.7       2.6  
 loo_model_weights(circular_schizophrenia_m,circular_Flattening_m,circular_SANS_m,circular_Anhedonia_m,circular_Avolition_m,circular_Attention_m)
 #                          weight
 # circular_schizophrenia_m 0.742 
@@ -1392,7 +1478,14 @@ loo_model_weights(circular_schizophrenia_m,circular_Flattening_m,circular_SANS_m
 # circular_Avolition_m     0.000 
 # circular_Attention_m     0.000 
 
-
+loo_compare(circular_schizophrenia_m,circular_SAPS_m,circular_Hallucinations_m,circular_Delusions_m,circular_Bizarre_m,circular_FormalThought_m)
+#                           elpd_diff se_diff
+# circular_schizophrenia_m   0.0       0.0   
+# circular_Bizarre_m        -1.4       2.4   
+# circular_Hallucinations_m -1.5       2.6   
+# circular_SAPS_m           -2.0       2.6   
+# circular_FormalThought_m  -2.4       2.6   
+# circular_Delusions_m      -3.0       2.6 
 loo_model_weights(circular_schizophrenia_m,circular_SAPS_m,circular_Hallucinations_m,circular_Delusions_m,circular_Bizarre_m,circular_FormalThought_m)
 # 
 # circular_schizophrenia_m  0.710 
@@ -1403,6 +1496,12 @@ loo_model_weights(circular_schizophrenia_m,circular_SAPS_m,circular_Hallucinatio
 # circular_FormalThought_m  0.000 
 
 loo_model_weights(circular_schizophrenia_m,circular_Anhedonia_m,circular_Hallucinations_m)
+# circular_schizophrenia_m  0.707 
+# circular_Anhedonia_m      0.145 
+# circular_Hallucinations_m 0.147 
+
+loo_compare(circular_schizophrenia_m,circular_PSP_m)
+loo_model_weights(circular_schizophrenia_m,circular_PSP_m)
 
 loo_compare(circular_schizophrenia_m, circular_IQ_m)
 loo_model_weights(circular_schizophrenia_m, circular_IQ_m)
@@ -1786,7 +1885,8 @@ aSelf <- c(post$b_aSelf_Intercept, post$b_aSelf_Intercept + post$b_aSelf_Attenti
 aOthers <- c(post$b_aOthers_Intercept, post$b_aOthers_Intercept + post$b_aOthers_AttentionS)
 Attention <- c(  rep(0,each=8000),  rep(1,each=8000)) 
 xxx <- data.frame(Attention,wSelf,wOthers,aSelf,aOthers,bias,bConfidence)
-Pars <- xxx %>% group_by(Attention) %>% dplyr::summarize(wSelf=mean(wSelf),wOthers=mean(wOthers),aSelf=mean(aSelf),aOthers=mean(aOthers),bias=mean(bias),bConfidence=mean(bConfidence))
+Pars <- xxx %>% group_by(Attention) %>% 
+  dplyr::summarize(wSelf=mean(wSelf),wOthers=mean(wOthers),aSelf=mean(aSelf),aOthers=mean(aOthers),bias=mean(bias),bConfidence=mean(bConfidence))
 Pars$wSelf_scale <- inv_logit_scaled(Pars$wSelf, 0.5, 1)
 Pars$wOthers_scale <- inv_logit_scaled(Pars$wOthers + Pars$bConfidence, 0.5, 1)
 Pars$wOthersLowConf_scale <- inv_logit_scaled(Pars$wOthers + (Pars$bConfidence*0.5), 0.5, 1)
@@ -1800,7 +1900,57 @@ summary(circular_AnhedoniaHallucinations_m)
 hypothesis(circular_AnhedoniaHallucinations_m,"wSelf_AnhedoniaS > 0")
 hypothesis(circular_AnhedoniaHallucinations_m,"wOthers_AnhedoniaS < 0")
 hypothesis(circular_AnhedoniaHallucinations_m,"aSelf_AnhedoniaS > 0")
-hypothesis(circular_AnhedoniaHallucinations_m,"aOthers_AnhedoniaAnhedoniaAnhedoniaS < 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"aOthers_AnhedoniaS < 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"wSelf_HallucinationsS > 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"wOthers_HallucinationsS < 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"aSelf_HallucinationsS > 0")
+hypothesis(circular_AnhedoniaHallucinations_m,"aOthers_HallucinationsS < 0")
+
+post <- posterior_samples(circular_AnhedoniaHallucinations_m)
+
+aSelf_base <- exp(post$b_aSelf_Intercept)
+aSelf_Anhedonia <- exp(post$b_aSelf_Intercept + post$b_aSelf_AnhedoniaS)
+aSelf_Hallucinations <- exp(post$b_aSelf_Intercept + post$b_aSelf_HallucinationsS)
+aSelf_AnhedoniaHallucinations <- exp(post$b_aSelf_Intercept + post$b_aSelf_AnhedoniaS + post$b_aSelf_HallucinationsS)
+
+mean(aSelf_base)
+mean(aSelf_Anhedonia)
+mean(aSelf_Hallucinations)
+mean(aSelf_AnhedoniaHallucinations)
+
+loo_compare(circular_schizophrenia_m, circular_AnhedoniaHallucinations_m, circular_AnhedoniaHallucinationsPSP_m)
+loo_model_weights(circular_schizophrenia_m, circular_AnhedoniaHallucinations_m, circular_AnhedoniaHallucinationsPSP_m)
+
+summary(circular_AnhedoniaHallucinationsPSP_m)
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wSelf_AnhedoniaS > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wOthers_AnhedoniaS < 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aSelf_AnhedoniaS > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aOthers_AnhedoniaS < 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wSelf_HallucinationsS > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wOthers_HallucinationsS < 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aSelf_HallucinationsS > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aOthers_HallucinationsS < 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wSelf_PSPs_schizo > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"wOthers_PSPs_schizo < 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aSelf_PSPs_schizo > 0")
+hypothesis(circular_AnhedoniaHallucinationsPSP_m,"aOthers_PSPs_schizo < 0")
+
+post <- posterior_samples(circular_AnhedoniaHallucinationsPSP_m)
+
+aSelf_base <- exp(post$b_aSelf_Intercept)
+aSelf_Anhedonia <- exp(post$b_aSelf_Intercept + post$b_aSelf_AnhedoniaS)
+aSelf_Hallucinations <- exp(post$b_aSelf_Intercept + post$b_aSelf_HallucinationsS)
+aSelf_PSP <- exp(post$b_aSelf_Intercept + post$b_aSelf_PSPs_schizo)
+aSelf_AnhedoniaHallucinations <- exp(post$b_aSelf_Intercept + post$b_aSelf_AnhedoniaS + post$b_aSelf_HallucinationsS)
+aSelf_AnhedoniaHallucinationsPSP <- exp(post$b_aSelf_Intercept + post$b_aSelf_AnhedoniaS + post$b_aSelf_HallucinationsS+ post$b_aSelf_PSPs_schizo)
+
+mean(aSelf_base)
+mean(aSelf_Anhedonia)
+mean(aSelf_Hallucinations)
+mean(aSelf_PSP)
+mean(aSelf_AnhedoniaHallucinations)
+mean(aSelf_AnhedoniaHallucinationsPSP)
+
 ```
 
 # Control analyses
@@ -2088,7 +2238,6 @@ STAN_CONTROL = list(
     adapt_delta = .999,
     max_treedepth = 20)
 
-## MISSING: HEURISTIC?
 
 naive_participant_f = bf(ChoiceRed ~ bias + lSelf + lOthers1 + lOthers2 + lOthers3 + lOthers4,
              bias ~ 1,
@@ -2953,7 +3102,7 @@ loo_model_weights(mFlatteningmo,mAvolitionmo,mAnhedoniamo,mAttentionmo,mAllSANSm
 # Correlation matrix
 
 SymptomsCor_f <- bf(
-  mvbind(Hallucinations,Delusions,Bizarre,FormalThought,Flattening,Avolition,Anhedonia,Attention) ~ 1 + (1|p|Subject)
+  mvbind(Hallucinations,Delusions,Bizarre,FormalThought,Flattening,Avolition,Anhedonia,Attention,SANS,SAPS,PSP) ~ 1 + (1|p|Subject)
 ) 
 
 get_prior(SymptomsCor_f,data=Demo,family=cumulative("logit"), threshold="flexible")
@@ -2968,7 +3117,10 @@ prior <- c(
   prior(normal(0,.3),class=sd,resp=Flattening),
   prior(normal(0,.3),class=sd,resp=Avolition),
   prior(normal(0,.3),class=sd,resp=Anhedonia),
-  prior(normal(0,.3),class=sd,resp=Attention)
+  prior(normal(0,.3),class=sd,resp=Attention),
+  prior(normal(0,.3),class=sd,resp=SANS),
+  prior(normal(0,.3),class=sd,resp=SAPS),
+  prior(normal(0,.3),class=sd,resp=PSP)
 )
 
 
@@ -2976,32 +3128,37 @@ prior2 <- c(
   prior(lkj(5),class=cor)
   )
 
-unique(Demo[,"Hallucinations"])
-unique(Demo[,"Delusions"])
-unique(Demo[,"Bizarre"])
-unique(Demo[,"FormalThought"])
-unique(Demo[,"Flattening"])
-unique(Demo[,"Avolition"])
-unique(Demo[,"Anhedonia"])
-unique(Demo[,"Attention"])
+
 
 DemoD <- Demo %>% subset(Subject < 200)
-DemoD[,c("Hallucinations","Delusions","Bizarre","FormalThought","Flattening","Avolition","Anhedonia","Attention")] <- DemoD[,c("Hallucinations","Delusions","Bizarre","FormalThought","Flattening","Avolition","Anhedonia","Attention")] + 1
+DemoD$Hallucinations <- as.numeric(as.factor(DemoD$Hallucinations))
+DemoD$Delusions <- as.numeric(as.factor(DemoD$Delusions))
+DemoD$Bizarre <- as.numeric(as.factor(DemoD$Bizarre))
+DemoD$FormalThought <- as.numeric(as.factor(DemoD$FormalThought))
+DemoD$Avolition <- as.numeric(as.factor(DemoD$Avolition))
+DemoD$Anhedonia <- as.numeric(as.factor(DemoD$Anhedonia))
+DemoD$Flattening <- as.numeric(as.factor(DemoD$Flattening))
+DemoD$Attention <- as.numeric(as.factor(DemoD$Attention))
+DemoD$SANS <- as.numeric(as.factor(DemoD$SANS))
+DemoD$SAPS <- as.numeric(as.factor(DemoD$SAPS))
+DemoD$PSP <- as.numeric(as.factor(DemoD$PSP))
+DemoD[,c("Hallucinations","Delusions","Bizarre","FormalThought","Flattening","Avolition","Anhedonia","Attention","SANS","SAPS","PSP")] <- DemoD[,c("Hallucinations","Delusions","Bizarre","FormalThought","Flattening","Avolition","Anhedonia","Attention","SANS","SAPS","PSP")] + 1
+
 
 SymptomsCor_m <- brm(
   SymptomsCor_f,
   family=cumulative("logit"),
   data = DemoD,
-  #prior=prior2,
+  #prior = prior(lkj(5), class = cor),
   #sample_prior = T,
   cores=2,chains=2,
-  iter=2000,
+  iter=8000,
   control=list(adapt_delta=0.99,max_treedepth=20),
-  file = "models/SymptomsCor2"
+  file = "models/SymptomsCor6"
 )
 
 summary(SymptomsCor_m)
-SymptomsCor_m <- add_criterion(SymptomsCor_m, criterion = "loo", file="models/SymptomsCor2")
+SymptomsCor_m <- add_criterion(SymptomsCor_m, criterion = "loo", file="models/SymptomsCor6")
 ```
 
 ## Control analysis 5: what if we include a heuristic model
@@ -3037,7 +3194,10 @@ heuristic_diagnosis_m = brm(heuristic_diagnosis_f,
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
 heuristic_diagnosis_m <- add_criterion(heuristic_diagnosis_m,
-                                     criterion=c("waic","loo","R2"), file = "models/Heuristic_diagnosis_m")
+                                     criterion=c("waic","loo","R2"), file = "models/heuristic_diagnosis_m")
+
+loo_compare(circular_diagnosis_m, circular_noI_diagnosis_m, weighted_diagnosis_m, naive_diagnosis_m, glm_diagnosis_m, heuristic_diagnosis_m)
+loo_model_weights(circular_diagnosis_m, circular_noI_diagnosis_m, weighted_diagnosis_m, naive_diagnosis_m, glm_diagnosis_m, heuristic_diagnosis_m)
 
 loo_model_weights(circular_diagnosis_m, heuristic_diagnosis_m)
 
@@ -3049,7 +3209,12 @@ loo_model_weights(circular_diagnosis_m, heuristic_diagnosis_m)
 ### Figure 2: Circular inference estimates by diagnosis
 
 ```{r}
-load("models/circular_diagnosis_m")
+circular_diagnosis_m<-readRDS("models/circular_diagnosis_m.RDS")
+circular_noI_diagnosis_m<-readRDS("models/circular_noI_diagnosis_m.RDS")
+glm_diagnosis_m<-readRDS("models/glm_diagnosis_m.RDS")
+weighted_diagnosis_m<-readRDS("models/weighted_diagnosis_m.RDS")
+naive_diagnosis_m<-readRDS("models/naive_diagnosis_m.RDS")
+heuristic_diagnosis_m<-readRDS("models/Heuristic_diagnosis_m.RDS")
 ### First generate all posterior samples for loops and weights by matched pair: intercept and diagnosis effect.
 post <- posterior_samples(circular_diagnosis_m)
 
