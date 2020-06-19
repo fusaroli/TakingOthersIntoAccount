@@ -1,0 +1,16 @@
+﻿id,symptom,symptom.type,type.label
+Hallucinations,Hallucinations,2,PositiveSymptoms
+Delusions,Delusions,2,PositiveSymptoms
+Bizarre,Bizarre Behavior,2,PositiveSymptoms
+FormalThought,Formal Thought Disorder,2,PositiveSymptoms
+Flattening,Affective Flattening,1,NegativeSymptoms
+Avolition,Avolition-Apathy,1,NegativeSymptoms
+Anhedonia,Anhedonia-Asociality,1,NegativeSymptoms
+Attention,Attention,1,NegativeSymptoms
+Alogia,Alogia,1,NegativeSymptoms
+SANS,SANS,1,NegativeSymptoms
+SAPS,SAPS,2,PositiveSymptoms
+PSP,PSP,3,SocialFunctioning
+Tasit,TASIT,4,Cognition
+IQ,IQ,4,Cognition
+CPZ,Medication,5,Medication
