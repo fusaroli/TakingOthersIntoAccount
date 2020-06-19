@@ -52,7 +52,7 @@ d = read_csv(here(data,"SocialNonSocial_data.csv")) %>%
     ConfidenceSelf = ifelse(secondChoice == 1 | secondChoice == 4, 1, 0.5)
   )
 
-source(here("functions","fit_simplex_priors.R"))
+source(here("scripts","fit_simplex_priors.R"))
 
 N_CORES = 2
 ITER = 4e3
@@ -66,75 +66,6 @@ STAN_CONTROL = list(
 # Unique participants
 length(unique(d$participant.code))
 ```
-
-## Sanity checks on the data
-```{r}
-
-d1 <- d %>% group_by(participant.code) %>%
-  summarize(Accuracy=mean(firstRed==firstRight,na.rm=T))
-
-d$Exclude <- 0
-d$Exclude[d$participant.code %in% subset(d1, Accuracy < 0.55)$participant.code] <- 1
-
-
-d %>% group_by(participant.code) %>%
-  summarize(Exclude = mean(Exclude,na.rm=T)) %>% summarize(sum(Exclude))
-
-d2 <- d 
-d2$firstRed[d2$Exclude==1] <- abs(d2$firstRed[d2$Exclude==1]-1)
-d2$firstChoice[d2$Exclude==1] <- 5 - d2$firstChoice[d2$Exclude==1]
-d2$secondChoice[d2$Exclude==1] <- 5 - d2$secondChoice[d2$Exclude==1]
-d2$lOther[d2$Exclude==1] <- - d2$lOther[d2$Exclude==1]
-
-d3 <- d2 %>% group_by(participant.code, lSelf) %>%
-  summarize(EasyAccuracy = mean(firstRed,na.rm=T)) %>% subset(
-    (lSelf > 1.5 & EasyAccuracy < .75) | (lSelf < -1.5 & EasyAccuracy > .25))
-d2$Exclude2 <- 0
-d2$Exclude2[d2$participant.code %in% d3$participant.code] <- 1
-
-
-subset(d, participant.code %in% c("aby18486", "b9z19mkx"))$Exclude
-
-
-d_a <- subset(d, participant.code %in% unique(participant.code)[1:10])
-d_a2 <- subset(d2, participant.code %in% unique(participant.code)[1:10])
-d_a3 <- subset(d2, Exclude2 == 0 & participant.code %in% unique(participant.code)[1:10])
-
-ggplot(d_a, aes(lSelf,firstChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-ggplot(d_a2, aes(lSelf,firstChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-ggplot(d_a3, aes(lSelf,firstChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-
-ggplot(d_a, aes(firstChoice,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-ggplot(d_a2, aes(firstChoice,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-ggplot(d_a3, aes(firstChoice,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-
-ggplot(d_a, aes(lOther,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-
-ggplot(d_a2, aes(lOther,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-ggplot(d_a3, aes(lOther,secondChoice)) + 
-  geom_point() + geom_smooth() + 
-  facet_wrap(.~participant.code)
-
-d3 <- subset(d2, Exclude == 0 & Exclude2 == 0)
-d4 <- subset(d2, Exclude2 == 0)
-```
-
 
 ## Modeling
 
@@ -150,17 +81,17 @@ naive_prior = c(
   )
 
 naive_social_m = brm(naive_social_f,
-              d4,
+              d,
               prior = naive_prior,
               sample_prior = TRUE,
               family = "bernoulli",
-              file =  "naive_social_m",
+              file =  here("models","naive_social_m"),
               chains = N_CORES, cores = N_CORES, iter = ITER,
               control = STAN_CONTROL)
 
 naive_social_m <- add_criterion(naive_social_m,
                                 criterion=c("waic","loo","bayes_R2"), 
-                                file = "naive_social_m")
+                                file = here("models","naive_social_m"))
 
 F <- function(a_raw, L_raw, w_raw) {
     # weighting function in R
@@ -208,11 +139,11 @@ weighted_social_m = brm(weighted_social_f,
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file =  "weighted_social_m",
+                 file =  here("models", "weighted_social_m"),
               chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
-weighted_social_m <- add_criterion(weighted_social_m,criterion=c("waic","loo","R2"), file = "models/weighted_social_m")
+weighted_social_m <- add_criterion(weighted_social_m,criterion=c("waic","loo","R2"), file = here("models", "weighted_social_m"))
 
 
 circular_social_f = bf(ChoiceRed ~ bias + 
@@ -241,13 +172,13 @@ circular_prior = c(prior(normal(0,.3), nlpar = "wSelf"),
                    prior(normal(0, .2), nlpar = "bConfidence",class="sd"),
                    prior("lkj(8)", class = "cor"))
 
-circular_social_m2 = brm(circular_social_f,
-               d3,
+circular_social_m = fit_brm(circular_social_f,
+               d,
                stan_funs = F_stancode,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               #file =  "circular_social_m",
+               #file =  here("models", "circular_social_m"),
                chains = 2, cores = 2, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
 
@@ -262,148 +193,3 @@ hypothesis(circular_social_m, "wSelf_opponentOtherPlayer < 0")
 hypothesis(circular_social_m, "wSelf_opponentOtherPlayer = 0")
 
 ```
-
-## Plot
-```{r}
-### First generate all posterior samples 
-post <- posterior_samples(circularInference_Social_simplex_all)
-
-bias <- c(post$b_bias_Intercept,
-          post$b_bias_Intercept + post$b_bias_opponentOtherPlayer)
-
-bConfidence <- c(post$b_bConfidence_Intercept,
-                 post$b_bConfidence_Intercept + post$b_bConfidence_opponentOtherPlayer)
-
-wSelf <- c(post$b_wSelf_Intercept, 
-           post$b_wSelf_Intercept + post$b_wSelf_opponentOtherPlayer)
-
-wOthers <- c(post$b_wOthers_Intercept, 
-             post$b_wOthers_Intercept + post$b_wOthers_opponentOtherPlayer)
-
-aSelf <- c(post$b_aSelf_Intercept,
-           post$b_aSelf_Intercept + post$b_aSelf_opponentOtherPlayer)
-
-aOthers <- c(post$b_aOthers_Intercept,
-             post$b_aOthers_Intercept + post$b_aOthers_opponentOtherPlayer)
-
-
-Social <- c(  rep(0,each=16000),  rep(1,each=16000)) 
-
-xxx <- data.frame(Social=as.factor(Social),wSelf,wOthers,aSelf,aOthers,bias,bConfidence)
-
-## Use the xxx dataset
-Pars <- xxx %>% group_by(Social) %>%
-  dplyr::summarize(
-    wSelf=mean(wSelf),
-    wOthers=mean(wOthers),
-    aSelf=mean(aSelf),
-    aOthers=mean(aOthers),
-    bias=mean(bias),
-    bConfidence=mean(bConfidence))
-
-# Summarize performance by group
-Raw <-d %>% 
-  group_by(opponent,
-           lSelf,
-           lOther,
-           ConfidenceOther) %>%
-  summarize(Red = mean(secondChoice/4, na.rm=T)) %>% rename(
-    Social = opponent
-  )
-
-
-F2 <- function(a_raw, L_raw, w_raw) {
-  # weighting function in R
-  a = exp(a_raw)
-  L = exp(L_raw * a)
-  w = inv_logit_scaled(w_raw, 0.5, 1)
-  log((w * L + 1 - w)/((1 - w) * L + w))
-}
-
-d0 <- unique(d[,c('lOther','ConfidenceOther')]) %>% mutate(ConfidenceOther= ifelse(ConfidenceOther==1, 1, 0.5))
-d0 <- d0 %>% mutate (Others = lOther * ConfidenceOther)
-d0 <- d0[order(d0$Others),]
-
-SocInfoLvls <- c("green high confidence",
-  "green low confidence",
-  "red low confidence",
-  "red high confidence")
-
-d0$SocialInformation <- factor(SocInfoLvls,levels = SocInfoLvls)
-
-d1 <- expand.grid(
-  lSelf=seq(-1.9459101,1.9459101,0.001),
-  Social=c(0,1))
-
-d1 <- merge(d0,d1,all=T)
-
-d1 <- merge(d1,Pars, by="Social")
-d1 <- d1 %>% mutate(
-  y = bias + F2(0, lSelf + F2(aSelf, lSelf, wSelf) +
-                  F2(aOthers, lOther, wOthers + bConfidence * ConfidenceOther), wSelf) +
-    F2(0, lOther + F2(aSelf, lSelf, wSelf) +
-         F2(aOthers, lOther, wOthers + bConfidence * ConfidenceOther), wOthers + bConfidence * ConfidenceOther),
-  Others = lOther*ConfidenceOther
-)
-
-#d1 <- merge(d1,Raw,all=T)
-
-d1$Social[d1$Social==0]="Non-Social"
-d1$Social[d1$Social==1]="Social"
-
-CI_bySelf <- ggplot(d1,aes(lSelf,inv.logit(y),color=SocialInformation,group=SocialInformation))+
-  geom_line(size=1)+
-  theme_classic()+
-  facet_wrap(.~Social)+
-  xlab("Reds in sample")+
-  ylab("Propensity to choose red") +
-  scale_x_continuous(breaks=sort(unique(d$lSelf)),labels=seq(1,7,1))+
-  guides(color=FALSE,group=FALSE)
-
-CI_bySelf
-
-# Now the opposite plot
-d0 <- data.frame(lSelf = sort(unique(d$lSelf)))
-
-IndInfoLvls <- c(
-  "1 red, 7 green",
-  "2 red, 6 green", 
-  "3 red, 5 green",
-  "4 red, 4 green", 
-  "5 red, 3 green", 
-  "6 red, 2 green",
-  "7 red, 1 green")
-
-d0$IndividualInformation <- factor(IndInfoLvls,levels=IndInfoLvls)
-
-d2 <- expand.grid(
-  lOthers=seq(-8.788898,8.788898,0.01),
-  Social=c(0,1))
-
-d2 <- merge(d0,d2,all=T)
-
-d2 <- merge(d2,Pars, by="Social")
-
-d2 <- d2 %>% mutate(
-  y = bias + 
-    F2(0, lSelf + F2(aSelf, lSelf, wSelf) +
-                  F2(aOthers, lOthers, wOthers + bConfidence), wSelf) +
-    F2(0, lOthers + F2(aSelf, lSelf, wSelf) +
-         F2(aOthers, lOthers, wOthers + bConfidence), wOthers + bConfidence))
-
-d2$Social[d2$Social==0]="Non-Social"
-d2$Social[d2$Social==1]="Social"
-
-CI_byOthers <- ggplot(d2,aes(lOthers,inv.logit(y),color=IndividualInformation,group=IndividualInformation))+
-  geom_line(size=1)+
-  theme_classic()+
-  facet_wrap(.~Diagnosis)+
-  xlab("Evidence provided by Others")+
-  ylab("Propensity to choose red")+
-  guides(color=FALSE,group=FALSE)
-
-CI_byOthers
-
-ggarrange(CI_byOthers,CI_bySelf,nrow = 2)
-```
-
