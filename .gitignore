@@ -1,5 +1,7 @@
 # Model files
 models/
+# Data files (for anonymity issues)
+data/
 
 # History files
 .Rhistory
