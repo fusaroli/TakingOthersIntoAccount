@@ -29,6 +29,9 @@ pacman::p_load(
   patchwork
 )
 
+dir.create(here("plots"), showWarnings = FALSE)
+dir.create(here("models"), showWarnings = FALSE)
+dir.create(here("models", "ByParticipant"), showWarnings = FALSE)
 ```
 
 
@@ -78,7 +81,7 @@ transform_logit <- function(x, lower = 0.1, upper = 0.9) {
     return(logit(x))
 }
 
-full_data = read_csv("data/data.csv") %>%
+full_data = read_csv(here("data","data.csv")) %>%
   mutate(
     IQs = IQ / max(IQ, na.rm = T)
   )
@@ -87,8 +90,8 @@ full_data = read_csv("data/data.csv") %>%
 
 ## Stan settings
 ```{r stan settings, eval = TRUE}
-source("scripts/ppc_functions.R")
-source("scripts/fit_simplex_priors.R")
+source(here("scripts", "ppc_functions.R"))
+source(here("scripts", "fit_simplex_priors.R"))
 
 N_CORES = 2
 ITER = 8e3
@@ -133,11 +136,13 @@ naive_diagnosis_m = brm(naive_diagnosis_f,
               prior = naive_prior,
               sample_prior = TRUE,
               family = "bernoulli",
-              file =  "models/naive_diagnosis_m",
+              file =  here("models","naive_diagnosis_m"),
               chains = N_CORES, cores = N_CORES, iter = ITER,
               control = STAN_CONTROL)
 
-naive_diagnosis_m <- add_criterion(naive_diagnosis_m,criterion=c("waic","loo","bayes_R2"), file = "models/naive_diagnosis_m")
+naive_diagnosis_m <- add_criterion(naive_diagnosis_m,
+                                   criterion=c("waic","loo","bayes_R2"), 
+                                   file = here("models","naive_diagnosis_m"))
 
 ```
 
@@ -202,11 +207,13 @@ weighted_diagnosis_m = fit_brm(weighted_diagnosis_f,
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file = "models/weighted_diagnosis_m",
+                 file = here("models", "weighted_diagnosis_m"),
                  chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
-weighted_diagnosis_m <- add_criterion(weighted_diagnosis_m,criterion=c("waic","loo","bayes_R2"), file = "models/weighted_diagnosis_m")
+weighted_diagnosis_m <- add_criterion(weighted_diagnosis_m,
+                                      criterion = c("waic","loo","bayes_R2"), 
+                                      file = here("models", "weighted_diagnosis_m"))
 
 ```
 
@@ -249,11 +256,13 @@ circular_noI_diagnosis_m = fit_brm(circular_noI_diagnosis_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_noI_diagnosis_m",
+               file = here("models", "circular_noI_diagnosis_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
-circular_noI_diagnosis_m <- add_criterion(circular_noI_diagnosis_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_noI_diagnosis_m")
+circular_noI_diagnosis_m <- add_criterion(circular_noI_diagnosis_m,
+                                          criterion=c("waic","loo","bayes_R2"), 
+                                          file = here("models", "circular_noI_diagnosis_m"))
 
 circular_diagnosis_f = bf(ChoiceRed ~ bias + 
                    F(0, lSelf + I, wSelf) +
@@ -293,11 +302,13 @@ circular_diagnosis_m = fit_brm(circular_diagnosis_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_diagnosis_m",
+               file = here("models", "circular_diagnosis_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
 
-circular_diagnosis_m <- add_criterion(circular_diagnosis_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_diagnosis_m")
+circular_diagnosis_m <- add_criterion(circular_diagnosis_m,
+                                      criterion = c("waic","loo","bayes_R2"), 
+                                      file = here("models", "circular_diagnosis_m"))
 
 ```
 
@@ -327,10 +338,12 @@ glm_diagnosis_m = brm(glm_diagnosis_f,
              data = full_data,
              prior = glm_prior,
              sample_prior = TRUE,
-             file= "models/glm_diagnosis_m",
+             file= here("models", "glm_diagnosis_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
-glm_diagnosis_m <- add_criterion(glm_diagnosis_m,criterion=c("waic","loo","bayes_R2"), file = "models/glm_diagnosis_m")
+glm_diagnosis_m <- add_criterion(glm_diagnosis_m,
+                                 criterion = c("waic","loo","bayes_R2"), 
+                                 file = here("models", "glm_diagnosis_m"))
 
 ```
 
@@ -361,11 +374,12 @@ heuristic_diagnosis_m = brm(heuristic_diagnosis_f,
              full_data,
              prior = heuristic_prior,
              sample_prior = TRUE,
-             file="models/Heuristic_Diagnosis_m",
+             file = here("models", "Heuristic_Diagnosis_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
 heuristic_diagnosis_m <- add_criterion(heuristic_diagnosis_m,
-                                     criterion=c("waic","loo","bayes_R2"), file = "models/heuristic_diagnosis_m")
+                                     criterion = c("waic","loo","bayes_R2"), 
+                                     file = here("models", "heuristic_diagnosis_m"))
 
 ```
 
@@ -379,12 +393,12 @@ Instead, we'll use information criteria (PSIS-LOO) to do model comparison.
 ```{r Model Comparison}
 
 # Load the models (if you haven't just run the script)
-naive_diagnosis_m <- readRDS("models/naive_diagnosis_m.RDS")
-weighted_diagnosis_m <- readRDS("models/weighted_diagnosis_m.RDS")
-circular_noI_diagnosis_m <- readRDS("models/circular_noI_diagnosis_m.RDS")
-circular_diagnosis_m <- readRDS("models/circular_diagnosis_m.RDS")
-glm_diagnosis_m <- readRDS("models/glm_diagnosis_m.RDS")
-heuristic_diagnosis_m <- readRDS("models/heuristic_diagnosis_m.RDS")
+naive_diagnosis_m <- readRDS(here("models", "naive_diagnosis_m.RDS"))
+weighted_diagnosis_m <- readRDS(here("models", "weighted_diagnosis_m.RDS"))
+circular_noI_diagnosis_m <- readRDS(here("models", "circular_noI_diagnosis_m.RDS"))
+circular_diagnosis_m <- readRDS(here("models", "circular_diagnosis_m.RDS"))
+glm_diagnosis_m <- readRDS(here("models", "glm_diagnosis_m.RDS"))
+heuristic_diagnosis_m <- readRDS(here("models", "heuristic_diagnosis_m.RDS"))
 
 # Report the models
 summary(naive_diagnosis_m)
@@ -515,7 +529,7 @@ circular_TasitTotal_m <-
   add_criterion(
     circular_TasitTotal_m,
     criterion = c("waic", "loo", "bayes_R2"),
-    file = "models/circular_TasitTotal_m"
+    file = here("models","circular_TasitTotal_m")
   )
 
 # IQ model
@@ -562,13 +576,13 @@ circular_IQ_m = fit_brm(circular_IQ_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_IQ_m",
+               file = here("models","circular_IQ_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,refresh=100,
                control = STAN_CONTROL)
 
 circular_IQ_m <- add_criterion(circular_IQ_m,
                                criterion=c("waic","loo","bayes_R2"), 
-                               file = "models/circular_IQ_m")
+                               file = here("models","circular_IQ_m"))
 
 # WM model
 circular_WM_f = bf(ChoiceRed ~ bias + 
@@ -676,7 +690,7 @@ circular_TasitTotal_IQ_m <-
   add_criterion(
     circular_TasitTotal_IQ_m,
     criterion = c("waic", "loo", "bayes_R2"),
-    file = "models/circular_TasitTotal_IQ_m"
+    file = here("models","circular_TasitTotal_IQ_m")
   )
 
 circular_WM_m = fit_brm(circular_WM_f,
@@ -685,13 +699,13 @@ circular_WM_m = fit_brm(circular_WM_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_WM_m",
+               file = here("models","circular_WM_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
 circular_WM_m <- add_criterion(circular_WM_confidence_a_m,
                                criterion=c("waic","loo","bayes_R2"), 
-                               file = "models/circular_WM_m")
+                               file = here("models","circular_WM_m"))
 
 # IED model
 circular_IED_f = bf(ChoiceRed ~ bias + 
@@ -739,13 +753,13 @@ circular_IED_m = fit_brm(circular_IED_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_IED_m",
+               file = here("models","circular_IED_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
 circular_IED_m <- add_criterion(circular_IED_m,
                                 criterion=c("waic","loo","bayes_R2"), 
-                                file = "models/circular_IED_m")
+                                file = here("models","circular_IED_m"))
 
 ## Model the global scores of SAPS
 # Hallucinations 
@@ -819,11 +833,13 @@ circular_Hallucinations_m = fit_brm(circular_Hallucinations_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Hallucinations_m",
+               file = here("models","circular_Hallucinations_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Hallucinations_m <- add_criterion(circular_Hallucinations_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Hallucinations_m")
+circular_Hallucinations_m <- add_criterion(circular_Hallucinations_m,
+                                           criterion=c("waic","loo","bayes_R2"), 
+                                           file = here("models","circular_Hallucinations_m"))
 
 
 # Delusions model
@@ -874,14 +890,15 @@ circular_Delusions_m = fit_brm(circular_Delusions_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Delusions_m",
+               file = here("models","circular_Delusions_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Delusions_m <- add_criterion(circular_Delusions_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Delusions_m")
+circular_Delusions_m <- add_criterion(circular_Delusions_m,
+                                      criterion=c("waic","loo","bayes_R2"), 
+                                      file = here("models","circular_Delusions_m"))
 
 # Bizarre Model
-# Bizarre model
 circular_Bizarre_f = bf(ChoiceRed ~ bias + 
                    F(0, lSelf + I, wSelf) +
                    F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
@@ -929,11 +946,13 @@ circular_Bizarre_m = fit_brm(circular_Bizarre_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Bizarre_m",
+               file = here("models","circular_Bizarre_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Bizarre_m <- add_criterion(circular_Bizarre_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Bizarre_m")
+circular_Bizarre_m <- add_criterion(circular_Bizarre_m,
+                                    criterion = c("waic","loo","bayes_R2"), 
+                                    file = here("models","circular_Bizarre_m"))
 
 ## FormalThought Model
 # FormalThought model
@@ -984,11 +1003,13 @@ circular_FormalThought_m = fit_brm(circular_FormalThought_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_FormalThought_m",
+               file = here("models","circular_FormalThought_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_FormalThought_m <- add_criterion(circular_FormalThought_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_FormalThought_m")
+circular_FormalThought_m <- add_criterion(circular_FormalThought_m,
+                                          criterion=c("waic","loo","bayes_R2"), 
+                                          file = here("models","circular_FormalThought_m"))
 
 # Flattening model
 circular_Flattening_f = bf(ChoiceRed ~ bias + 
@@ -1038,11 +1059,13 @@ circular_Flattening_m = fit_brm(circular_Flattening_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Flattening_m",
+               file = here("models","circular_Flattening_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Flattening_m <- add_criterion(circular_Flattening_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Flattening_m")
+circular_Flattening_m <- add_criterion(circular_Flattening_m,
+                                       criterion=c("waic","loo","bayes_R2"), 
+                                       file = here("models","circular_Flattening_m"))
 
 # Alogia model
 circular_Alogia_f = bf(ChoiceRed ~ bias + 
@@ -1092,11 +1115,13 @@ circular_Alogia_m = brm(circular_Alogia_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Alogia_m",
+               file = here("models","circular_Alogia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Alogia_m <- add_criterion(circular_Alogia_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Alogia_m")
+circular_Alogia_m <- add_criterion(circular_Alogia_m,
+                                   criterion = c("waic","loo","bayes_R2"), 
+                                   file = here("models","circular_Alogia_m"))
 # Avolition model
 circular_Avolition_f = bf(ChoiceRed ~ bias + 
                    F(0, lSelf + I, wSelf) +
@@ -1145,11 +1170,13 @@ circular_Avolition_m = fit_brm(circular_Avolition_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Avolition_m",
+               file = here("models","circular_Avolition_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Avolition_m <- add_criterion(circular_Avolition_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Avolition_m")
+circular_Avolition_m <- add_criterion(circular_Avolition_m,
+                                      criterion = c("waic","loo","bayes_R2"), 
+                                      file = here("models","circular_Avolition_m"))
 
 # Anhedonia model
 circular_Anhedonia_f = bf(ChoiceRed ~ bias + 
@@ -1199,11 +1226,13 @@ circular_Anhedonia_m = fit_brm(circular_Anhedonia_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Anhedonia_m",
+               file = here("models","circular_Anhedonia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Anhedonia_m <- add_criterion(circular_Anhedonia_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Anhedonia_m")
+circular_Anhedonia_m <- add_criterion(circular_Anhedonia_m,
+                                      criterion=c("waic","loo","bayes_R2"), 
+                                      file = here("models","circular_Anhedonia_m"))
 
 # Attention model
 circular_Attention_f = bf(ChoiceRed ~ bias + 
@@ -1253,11 +1282,13 @@ circular_Attention_m = fit_brm(circular_Attention_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_Attention_m",
+               file = here("models","circular_Attention_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
-circular_Attention_m <- add_criterion(circular_Attention_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_Attention_m")
+circular_Attention_m <- add_criterion(circular_Attention_m,
+                                      criterion = c("waic","loo","bayes_R2"), 
+                                      file = here("models","circular_Attention_m"))
 
 # SANS model
 circular_SANS_f = bf(ChoiceRed ~ bias + 
@@ -1305,13 +1336,13 @@ circular_SANS_m = fit_brm(circular_SANS_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_SANS_m",
+               file = here("models","circular_SANS_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
 circular_SANS_m <- add_criterion(circular_SANS_m,
                                  criterion=c("waic","loo","bayes_R2"), 
-                                 file = "models/circular_SANS_m")
+                                 file = here("models","circular_SANS_m"))
 
 # SAPS model
 circular_SAPS_f = bf(ChoiceRed ~ bias + 
@@ -1359,13 +1390,13 @@ circular_SAPS_m = fit_brm(circular_SAPS_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_SAPS_m",
+               file = here("models","circular_SAPS_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=100,
                control = STAN_CONTROL)
 
 circular_SAPS_m <- add_criterion(circular_SAPS_m,
                                  criterion=c("waic","loo","bayes_R2"), 
-                                 file = "models/circular_SAPS_m")
+                                 file = here("models","circular_SAPS_m"))
 
 # CPZ model
 circular_CPZ_f = bf(ChoiceRed ~ bias + 
@@ -1418,7 +1449,7 @@ circular_CPZ_m = fit_brm(circular_CPZ_f,
 
 circular_CPZ_m <- add_criterion(circular_CPZ_m,
                                 criterion=c("waic","loo","bayes_R2"), 
-                                file = "models/circular_CPZ_m")
+                                file = here("models","circular_CPZ_m"))
 
 # PSP model
 circular_PSP_f = bf(ChoiceRed ~ bias + 
@@ -1466,11 +1497,13 @@ circular_PSP_m = fit_brm(circular_PSP_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_PSP_m",
+               #file = here("models","circular_PSP_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
-circular_PSP_m <- add_criterion(circular_PSP_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_PSP_m")
+circular_PSP_m <- add_criterion(circular_PSP_m,
+                                criterion = c("waic","loo","bayes_R2"), 
+                                file = here("models","circular_PSP_m"))
 
 ```
 
@@ -1479,10 +1512,10 @@ circular_PSP_m <- add_criterion(circular_PSP_m,criterion=c("waic","loo","bayes_R
 ```{r}
 ## TASIT
 summary(circular_TasitTotal_m)
-hypothesis(circular_IQ_m,"wSelf_TasitTotal < 0")
-hypothesis(circular_IQ_m,"wOthers_TasitTotal > 0")
-hypothesis(circular_IQ_m,"aSelf_TasitTotal < 0")
-hypothesis(circular_IQ_m,"aOthers_TasitTotal > 0")
+hypothesis(circular_IQ_m, "wSelf_TasitTotal < 0")
+hypothesis(circular_IQ_m, "wOthers_TasitTotal > 0")
+hypothesis(circular_IQ_m, "aSelf_TasitTotal < 0")
+hypothesis(circular_IQ_m, "aOthers_TasitTotal > 0")
 
 # Calculate estimates
 post <- posterior_samples(circular_TasitTotal_m)
@@ -1931,18 +1964,20 @@ circular_nopooling_m = brm(circular_nopooling_f,
                prior = circular_nopooling_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_nopooling_m",
+               file = here("models","circular_nopooling_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
 
-circular_nopooling_m <- add_criterion(circular_nopooling_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_nopooling_m")
+circular_nopooling_m <- add_criterion(circular_nopooling_m,
+                                      criterion=c("waic","loo","bayes_R2"), 
+                                      file = here("models","circular_nopooling_m"))
 
 ```
 
 ### Model comparison
 
 ```{r}
-circular_nopooling_m <- readRDS("models/circular_nopooling_m.RDS")
+circular_nopooling_m <- readRDS(here("models","circular_nopooling_m.RDS"))
 loo_model_weights(circular_diagnosis_m, circular_nopooling_m)
 
 ```
@@ -1980,11 +2015,13 @@ weighted_schizophrenia_m = brm(weighted_f,
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file = "models/weighted_schizophrenia_m",
+                 file = here("models","weighted_schizophrenia_m"),
                  chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
-weighted_schizophrenia_m <- add_criterion(weighted_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = "models/weighted_schizophrenia_m")
+weighted_schizophrenia_m <- add_criterion(weighted_schizophrenia_m,
+                                          criterion = c("waic","loo","bayes_R2"), 
+                                          file = here("models","weighted_schizophrenia_m"))
 
 weighted_controls_m = brm(weighted_f,
                  subset(full_data,Diagnosis==0),
@@ -1992,11 +2029,13 @@ weighted_controls_m = brm(weighted_f,
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file = "models/weighted_controls_m",
+                 file = here("models","weighted_controls_m"),
                  chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
-weighted_controls_m <- add_criterion(weighted_controls_m,criterion=c("waic","loo","bayes_R2"), file = "models/weighted_controls_m")
+weighted_controls_m <- add_criterion(weighted_controls_m,
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models","weighted_controls_m"))
 
 circular_noI_byGroup_f = bf(ChoiceRed ~ bias + 
                    F(aSelf, lSelf, wSelf) +
@@ -2034,7 +2073,9 @@ circular_noI_controls_m = fit_brm(circular_noI_byGroup_f,
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
-circular_noI_controls_m <- add_criterion(circular_controls_noI_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_noI_controls_m")
+circular_noI_controls_m <- add_criterion(circular_controls_noI_m,
+                                         criterion=c("waic","loo","bayes_R2"), 
+                                         file = here("models","circular_noI_controls_m"))
 
 circular_noI_schizophrenia_m = fit_brm(circular_noI_byGroup_f,
                subset(full_data,Diagnosis==1),
@@ -2042,11 +2083,13 @@ circular_noI_schizophrenia_m = fit_brm(circular_noI_byGroup_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_noI_schizophrenia_m",
+               file = here("models","circular_noI_schizophrenia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
-circular_noI_schizophrenia_m <- add_criterion(circular_noI_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_noI_schizophrenia_m")
+circular_noI_schizophrenia_m <- add_criterion(circular_noI_schizophrenia_m,
+                                              criterion = c("waic","loo","bayes_R2"), 
+                                              file = here("models","circular_noI_schizophrenia_m"))
 
 circular_f = bf(ChoiceRed ~ bias + 
                    F(0, lSelf + I, wSelf) +
@@ -2087,10 +2130,10 @@ circular_schizophrenia_m = brm(circular_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = "models/circular_schizophrenia_m2",
+               file = here("models","circular_schizophrenia_m2"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
-circular_schizophrenia_m <- add_criterion(circular_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_schizophrenia_m2")
+circular_schizophrenia_m <- add_criterion(circular_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = here("models", "circular_schizophrenia_m2"))
 
 circular_controls_m = fit_brm(circular_f,
                subset(full_data, Diagnosis==0),
@@ -2098,10 +2141,12 @@ circular_controls_m = fit_brm(circular_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = "models/circular_controls_m",
+               file = here("models","circular_controls_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
-circular_controls_m <- add_criterion(circular_controls_m,criterion=c("waic","loo","bayes_R2"), file = "models/circular_controls_m")
+circular_controls_m <- add_criterion(circular_controls_m,
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models","circular_controls_m"))
 
 ## By group
 glm_f = bf(ChoiceRed ~ bias + 
@@ -2127,20 +2172,24 @@ glm_schizophrenia_m = brm(glm_f,
              data = subset(full_data,Diagnosis==1),
              prior = glm_prior,
              sample_prior = TRUE,
-             file = "models/glm_schizophrenia_m",
+             file = here("models","glm_schizophrenia_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
-glm_schizophrenia_m <- add_criterion(glm_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = "models/glm_schizophrenia_m")
+glm_schizophrenia_m <- add_criterion(glm_schizophrenia_m,
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models","glm_schizophrenia_m"))
 
 glm_controls_m = brm(glm_f,
              family="bernoulli",
              data = subset(full_data,Diagnosis==0),
              prior = glm_prior,
              sample_prior = TRUE,
-             file = "models/glm_controls_m",
+             file = here("models","glm_controls_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
-glm_controls_m <- add_criterion(glm_controls_m,criterion=c("waic","loo","bayes_R2"), file = "models/glm_controls_m")
+glm_controls_m <- add_criterion(glm_controls_m,
+                                criterion=c("waic","loo","bayes_R2"), 
+                                file = here("models","glm_controls_m"))
 
 ## Heuristic
 ### If self is .5 (4 and 4 marbles), then look at others, otherwise nope
@@ -2167,22 +2216,24 @@ heuristic_schizophrenia_m = brm(heuristic_f,
              data = subset(full_data,Diagnosis==1),
              prior = heuristic_prior,
              sample_prior = TRUE,
-             file="models/Heuristic_schizophrenia_m",
+             file = here("models","Heuristic_schizophrenia_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
 heuristic_schizophrenia_m <- add_criterion(heuristic_schizophrenia_m,
-                                     criterion=c("waic","loo","bayes_R2"), file = "models/heuristic_schizophrenia_m")
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models","heuristic_schizophrenia_m"))
 
 heuristic_controls_m = brm(heuristic_f,
-             family="bernoulli",
+             family = "bernoulli",
              data = subset(full_data,Diagnosis==0),
              prior = heuristic_prior,
              sample_prior = TRUE,
-             file="models/Heuristic_controls_m",
+             file = here("models","Heuristic_controls_m"),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
 heuristic_controls_m <- add_criterion(heuristic_controls_m,
-                                     criterion=c("waic","loo","bayes_R2"), file = "models/heuristic_controls_m")
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models","heuristic_controls_m"))
 ```
 
 # Now model comparison
@@ -2290,11 +2341,12 @@ for (participant in unique(full_data$Subject)){
                 prior = naive_prior,
                 sample_prior = TRUE,
                 family = "bernoulli",
-                file=paste0("models/ByParticipant/Naive_S",participant,"_m"),
+                file = here("models", "ByParticipant", paste0("Naive_S",participant,"_m")),
                 chains = N_CORES, cores = N_CORES, iter = ITER,
                 control = STAN_CONTROL)
   naive_participant_m <- add_criterion(naive_participant_m, 
-                                       criterion=c("waic","loo","bayes_R2"), file=paste0("models/ByParticipant/Naive_S",participant,"_m"))
+                                       criterion=c("waic","loo","bayes_R2"), 
+                                       file = here("models", "ByParticipant",  paste0("Naive_S", participant, "_m")))
   
   weighted_participant_m = brm(weighted_participant_f,
                  subset(full_data,Subject==participant),
@@ -2302,12 +2354,13 @@ for (participant in unique(full_data$Subject)){
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file=paste0("models/ByParticipant/Weighted_S",participant,"_m"),
+                 file = here("models", "ByParticipant", paste0("Weighted_S",participant,"_m")),
                  chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
   weighted_participant_m <- add_criterion(weighted_participant_m,
-                                          criterion=c("waic","loo","bayes_R2"), file=paste0("models/ByParticipant/Weighted_S",participant,"_m"))
+                                          criterion=c("waic","loo","bayes_R2"),
+file = here("models", "ByParticipant", paste0("Weighted_S",participant,"_m")))
   
   circular_noI_participant_m = brm(circular_noI_participant_f,
                subset(full_data,Subject==participant),
@@ -2315,11 +2368,12 @@ for (participant in unique(full_data$Subject)){
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file=paste0("models/ByParticipant/CircularNoI_S",participant,"_m"),
+               file = here("models", "ByParticipant", paste0("CircularNoI_S",participant,"_m")),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
   circular_noI_participant_m <- add_criterion(circular_noI_participant_m,
-                                              criterion=c("waic","loo","bayes_R2"),file=paste0("models/ByParticipant/CircularNoI_S",participant,"_m"))
+                                              criterion=c("waic","loo","bayes_R2"), 
+                                              file = here("models", "ByParticipant",  paste0("CircularNoI_S",participant,"_m")))
 
   circular_participant_m = brm(circular_participant_f,
                subset(full_data,Subject==participant),
@@ -2327,22 +2381,24 @@ for (participant in unique(full_data$Subject)){
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file=paste0("models/ByParticipant/Circular_S",participant,"_m"),
+               file = here("models", "ByParticipant", paste0("Circular_S", participant,"_m")),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
   circular_participant_m <- add_criterion(circular_participant_m,
-                                          criterion=c("waic","loo","bayes_R2"), file=paste0("models/ByParticipant/Circular_S",participant,"_m"))
+                                          criterion=c("waic","loo","bayes_R2"),
+                                          file = here("models", "ByParticipant",  paste0("Circular_S",participant,"_m")))
   
   glm_participant_m = brm(glm_participant_f,
              family="bernoulli",
              subset(full_data,Subject==participant),
              prior = glm_prior,
              sample_prior = TRUE,
-             file=paste0("models/ByParticipant/GLM_S",participant,"_m"),
+             file = here("models", "ByParticipant",  paste0("GLM_S",participant,"_m")),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
   glm_participant_m <- add_criterion(glm_participant_m,
-                                     criterion=c("waic","loo","bayes_R2"), file = paste0("models/ByParticipant/GLM_S",participant,"_m"))
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models", "ByParticipant",   paste0("GLM_S",participant,"_m")))
   
 
   heuristic_participant_m = brm(heuristic_participant_f,
@@ -2350,12 +2406,13 @@ for (participant in unique(full_data$Subject)){
              subset(full_data,Subject==participant),
              prior = heuristic_prior,
              sample_prior = TRUE,
-             file=paste0("models/ByParticipant/Heuristic_S",participant,"_m"),
+             file = here("models", "ByParticipant", paste0("Heuristic_S",participant,"_m")),
              chains = N_CORES, cores = N_CORES, iter = ITER,
              control = STAN_CONTROL)
   
   heuristic_participant_m <- add_criterion(heuristic_participant_m,
-                                     criterion=c("waic","loo","bayes_R2"), file = paste0("models/ByParticipant/Heuristic_S",participant,"_m"))
+                                     criterion=c("waic","loo","bayes_R2"), 
+                                     file = here("models", "ByParticipant",  paste0("Heuristic_S",participant,"_m")))
 
   
   modelweights<-loo_model_weights(
@@ -2364,7 +2421,7 @@ for (participant in unique(full_data$Subject)){
     glm_participant_m, heuristic_participant_m)
   
   print(modelweights)
-  write_rds(modelweights, path=paste0("models/S",participant,"_weights"))
+  write_rds(modelweights, path = here("models", paste0("S",participant,"_weights")))
   
 }
 
@@ -2414,7 +2471,7 @@ m <- brm(MultiVariate_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mDiagnosis",
+         file = here("models","mDiagnosis"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2459,7 +2516,7 @@ mSANS<- brm(MultiVariateSANS_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mSANS",
+         file = here("models","mSANS"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2467,7 +2524,9 @@ mSANS<- brm(MultiVariateSANS_f,
           max_treedepth = 20
         ))
 
-mSANS <- add_criterion(mSANS,criterion="loo",file="models/mSANS")
+mSANS <- add_criterion(mSANS,
+                       criterion = "loo",
+                       file = here("models","mSANS"))
 
 MultiVariateSANSmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(SANS) 
@@ -2478,7 +2537,7 @@ mSANSmo<- brm(MultiVariateSANSmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mSANSmo",
+         file = here("models","mSANSmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2486,7 +2545,9 @@ mSANSmo<- brm(MultiVariateSANSmo_f,
           max_treedepth = 20
         ))
 
-mSANSmo <- add_criterion(mSANSmo,criterion="loo",file="models/mSANSmo")
+mSANSmo <- add_criterion(mSANSmo,
+                         criterion="loo",
+                         file=here("models","mSANSmo"))
 
 MultiVariateSAPS_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + SAPS 
@@ -2497,7 +2558,7 @@ mSAPS<- brm(MultiVariateSAPS_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mSAPS",
+         file = here("models","mSAPS"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2505,7 +2566,8 @@ mSAPS<- brm(MultiVariateSAPS_f,
           max_treedepth = 20
         ))
 
-mSAPS <- add_criterion(mSAPS,criterion="loo",file="models/mSAPS")
+mSAPS <- add_criterion(mSAPS,criterion="loo",
+                       file=here("models","mSAPS"))
 
 MultiVariateSAPSmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(SAPS) 
@@ -2516,7 +2578,7 @@ mSAPSmo <- brm(MultiVariateSAPSmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mSAPSmo",
+         file = here("models","mSAPSmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2524,7 +2586,9 @@ mSAPSmo <- brm(MultiVariateSAPSmo_f,
           max_treedepth = 20
         ))
 
-mSAPSmo <- add_criterion(mSAPSmo,criterion="loo",file="models/mSAPSmo")
+mSAPSmo <- add_criterion(mSAPSmo,
+                         criterion="loo",
+                         file=here("models","mSAPSmo"))
 
 ## PSP
 MultiVariatePSP_f <- bf(
@@ -2543,7 +2607,7 @@ mPSP<- brm(MultiVariatePSP_f,
           max_treedepth = 20
         ))
 
-mPSP <- add_criterion(mPSP,criterion="loo",file="models/mPSP")
+mPSP <- add_criterion(mPSP,criterion="loo",file=here("models","mPSP"))
 
 MultiVariatePSPmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(PSP) 
@@ -2554,7 +2618,7 @@ mPSPmo <- brm(MultiVariatePSPmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mPSPmo",
+         file = here("models","mPSPmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2562,7 +2626,7 @@ mPSPmo <- brm(MultiVariatePSPmo_f,
           max_treedepth = 20
         ))
 
-mPSPmo <- add_criterion(mPSPmo, criterion="loo", file="models/mPSPmo")
+mPSPmo <- add_criterion(mPSPmo, criterion="loo", file=here("models","mPSPmo"))
 
 ## Allucinations
 MultiVariateAllucinations_f <- bf(
@@ -2574,7 +2638,7 @@ mAllucinations<- brm(MultiVariateAllucinations_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file="models/mAllucinations",
+         file=here("models","mAllucinations"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2582,7 +2646,9 @@ mAllucinations<- brm(MultiVariateAllucinations_f,
           max_treedepth = 20
         ))
 
-mAllucinations <- add_criterion(mAllucinations,criterion="loo",file="models/mAllucinations")
+mAllucinations <- add_criterion(mAllucinations,
+                                criterion="loo",
+                                file=here("models","mAllucinations"))
 
 MultiVariateAllucinationsmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Hallucinations) 
@@ -2593,7 +2659,7 @@ mAllucinationsmo <- brm(MultiVariateAllucinationsmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAllucinationsmo",
+         file = here("models","mAllucinationsmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2601,7 +2667,7 @@ mAllucinationsmo <- brm(MultiVariateAllucinationsmo_f,
           max_treedepth = 20
         ))
 
-mAllucinationsmo <- add_criterion(mAllucinationsmo, criterion="loo", file="models/mAllucinationsmo")
+mAllucinationsmo <- add_criterion(mAllucinationsmo, criterion="loo", file=here("models","mAllucinationsmo"))
 
 ## Delusions
 MultiVariateDelusions_f <- bf(
@@ -2620,7 +2686,7 @@ mDelusions<- brm(MultiVariateDelusions_f,
           max_treedepth = 20
         ))
 
-mDelusions <- add_criterion(mDelusions,criterion="loo",file="models/mDelusions")
+mDelusions <- add_criterion(mDelusions,criterion="loo",file=here("models","mDelusions"))
 
 MultiVariateDelusionsmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Delusions) 
@@ -2632,7 +2698,7 @@ MultiVariateDelusionsmo_f <- bf(
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mDelusionsmo",
+         file = here("models","mDelusionsmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2640,7 +2706,7 @@ MultiVariateDelusionsmo_f <- bf(
           max_treedepth = 20
         ))
 
-mDelusionsmo <- add_criterion(mDelusionsmo, criterion="loo", file="models/mDelusionsmo")
+mDelusionsmo <- add_criterion(mDelusionsmo, criterion="loo", file=here("models","mDelusionsmo"))
 
 ## Bizarre
 MultiVariateBizarre_f <- bf(
@@ -2659,7 +2725,7 @@ mBizarre<- brm(MultiVariateBizarre_f,
           max_treedepth = 20
         ))
 
-mBizarre <- add_criterion(mBizarre,criterion="loo",file="models/mBizarre")
+mBizarre <- add_criterion(mBizarre,criterion="loo",file=here("models","mBizarre"))
 
 MultiVariateBizarremo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Bizarre) 
@@ -2670,7 +2736,7 @@ mBizarremo <- brm(MultiVariateBizarremo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mBizarremo",
+         file = here("models","mBizarremo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2678,7 +2744,7 @@ mBizarremo <- brm(MultiVariateBizarremo_f,
           max_treedepth = 20
         ))
 
-mBizarremo <- add_criterion(mBizarremo, criterion="loo", file="models/mBizarremo")
+mBizarremo <- add_criterion(mBizarremo, criterion="loo", file=here("models","mBizarremo"))
 
 ## FormalThought
 MultiVariateFormalThought_f <- bf(
@@ -2697,7 +2763,7 @@ mFormalThought<- brm(MultiVariateFormalThought_f,
           max_treedepth = 20
         ))
 
-mFormalThought <- add_criterion(mFormalThought,criterion="loo",file="models/mFormalThought")
+mFormalThought <- add_criterion(mFormalThought,criterion="loo",file=here("models","mFormalThought"))
 
 MultiVariateFormalThoughtmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(FormalThought) 
@@ -2708,7 +2774,7 @@ mFormalThoughtmo <- brm(MultiVariateFormalThoughtmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mFormalThoughtmo",
+         file = here("models","mFormalThoughtmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2716,7 +2782,7 @@ mFormalThoughtmo <- brm(MultiVariateFormalThoughtmo_f,
           max_treedepth = 20
         ))
 
-mFormalThoughtmo <- add_criterion(mFormalThoughtmo, criterion="loo", file="models/mFormalThoughtmo")
+mFormalThoughtmo <- add_criterion(mFormalThoughtmo, criterion="loo", file=here("models","mFormalThoughtmo"))
 
 ## Flattening
 MultiVariateFlattening_f <- bf(
@@ -2735,7 +2801,7 @@ mFlattening<- brm(MultiVariateFlattening_f,
           max_treedepth = 20
         ))
 
-mFlattening <- add_criterion(mFlattening,criterion="loo",file="models/mFlattening")
+mFlattening <- add_criterion(mFlattening,criterion="loo",file=here("models","mFlattening"))
 
 MultiVariateFlatteningmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Flattening) 
@@ -2746,7 +2812,7 @@ mFlatteningmo <- brm(MultiVariateFlatteningmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mFlatteningmo",
+         file = here("models","mFlatteningmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2754,7 +2820,7 @@ mFlatteningmo <- brm(MultiVariateFlatteningmo_f,
           max_treedepth = 20
         ))
 
-mFlatteningmo <- add_criterion(mFlatteningmo, criterion="loo", file="models/mFlatteningmo")
+mFlatteningmo <- add_criterion(mFlatteningmo, criterion="loo", file=here("models","mFlatteningmo"))
 
 ## Alogia
 MultiVariateAlogia_f <- bf(
@@ -2773,7 +2839,7 @@ mAlogia<- brm(MultiVariateAlogia_f,
           max_treedepth = 20
         ))
 
-mAlogia <- add_criterion(mAlogia,criterion="loo",file="models/mAlogia")
+mAlogia <- add_criterion(mAlogia,criterion="loo",file=here("models","mAlogia"))
 
 MultiVariateAlogiamo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Alogia) 
@@ -2784,7 +2850,7 @@ mAlogiamo <- brm(MultiVariateAlogiamo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAlogiamo",
+         file = here("models","mAlogiamo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2792,7 +2858,7 @@ mAlogiamo <- brm(MultiVariateAlogiamo_f,
           max_treedepth = 20
         ))
 
-mAlogiamo <- add_criterion(mAlogiamo, criterion="loo", file="models/mAlogiamo")
+mAlogiamo <- add_criterion(mAlogiamo, criterion="loo", file=here("models","mAlogiamo"))
 
 ## Avolition
 MultiVariateAvolition_f <- bf(
@@ -2811,7 +2877,7 @@ mAvolition<- brm(MultiVariateAvolition_f,
           max_treedepth = 20
         ))
 
-mAvolition <- add_criterion(mAvolition,criterion="loo",file="models/mAvolition")
+mAvolition <- add_criterion(mAvolition,criterion="loo",file=here("models","mAvolition"))
 
 MultiVariateAvolitionmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Avolition) 
@@ -2822,7 +2888,7 @@ mAvolitionmo <- brm(MultiVariateAvolitionmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAvolitionmo",
+         file = here("models","mAvolitionmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2830,7 +2896,7 @@ mAvolitionmo <- brm(MultiVariateAvolitionmo_f,
           max_treedepth = 20
         ))
 
-mAvolitionmo <- add_criterion(mAvolitionmo, criterion="loo", file="models/mAvolitionmo")
+mAvolitionmo <- add_criterion(mAvolitionmo, criterion="loo", file=here("models","mAvolitionmo"))
 
 ## Anhedonia
 MultiVariateAnhedonia_f <- bf(
@@ -2849,7 +2915,8 @@ mAnhedonia<- brm(MultiVariateAnhedonia_f,
           max_treedepth = 20
         ))
 
-mAnhedonia <- add_criterion(mAnhedonia,criterion="loo",file="models/mAnhedonia")
+mAnhedonia <- add_criterion(mAnhedonia,criterion="loo",
+                            file=here("models","mAnhedonia"))
 
 MultiVariateAnhedoniamo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Anhedonia) 
@@ -2860,7 +2927,7 @@ mAnhedoniamo <- brm(MultiVariateAnhedoniamo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAnhedoniamo",
+         file = here("models","mAnhedoniamo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2868,7 +2935,7 @@ mAnhedoniamo <- brm(MultiVariateAnhedoniamo_f,
           max_treedepth = 20
         ))
 
-mAnhedoniamo <- add_criterion(mAnhedoniamo, criterion="loo", file="models/mAnhedoniamo")
+mAnhedoniamo <- add_criterion(mAnhedoniamo, criterion="loo", file=here("models","mAnhedoniamo"))
 
 ## Attention
 MultiVariateAttention_f <- bf(
@@ -2887,7 +2954,7 @@ mAttention<- brm(MultiVariateAttention_f,
           max_treedepth = 20
         ))
 
-mAttention <- add_criterion(mAttention,criterion="loo",file="models/mAttention")
+mAttention <- add_criterion(mAttention,criterion="loo",file=here("models","mAttention"))
 
 MultiVariateAttentionmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Attention) 
@@ -2898,7 +2965,7 @@ mAttentionmo <- brm(MultiVariateAttentionmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAttentionmo",
+         file = here("models","mAttentionmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2906,7 +2973,7 @@ mAttentionmo <- brm(MultiVariateAttentionmo_f,
           max_treedepth = 20
         ))
 
-mAttentionmo <- add_criterion(mAttentionmo, criterion="loo", file="models/mAttentionmo")
+mAttentionmo <- add_criterion(mAttentionmo, criterion="loo", file=here("models","mAttentionmo"))
 
 MultiVariateAllSAPS_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + Hallucinations + Delusions + Bizarre + FormalThought) + set_rescor(rescor=TRUE)
@@ -2923,7 +2990,7 @@ mAllSAPS<- brm(MultiVariateAllSAPS_f,
           max_treedepth = 20
         ))
 
-mAllSAPS <- add_criterion(mAllSAPS,criterion="loo",file="models/mAllSAPS")
+mAllSAPS <- add_criterion(mAllSAPS,criterion="loo",file=here("models","mAllSAPS"))
 
 MultiVariateAllSAPSmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Hallucinations) + mo(Delusions) + mo(Bizarre) + mo(FormalThought)) + set_rescor(rescor=TRUE)
@@ -2933,7 +3000,7 @@ mAllSAPSmo <- brm(MultiVariateAllSAPSmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAllSAPSmo",
+         file = here("models","mAllSAPSmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2941,7 +3008,7 @@ mAllSAPSmo <- brm(MultiVariateAllSAPSmo_f,
           max_treedepth = 20
         ))
 
-mAllSAPSmo <- add_criterion(mAllSAPSmo, criterion="loo", file="models/mAllSAPSmo")
+mAllSAPSmo <- add_criterion(mAllSAPSmo, criterion="loo", file=here("models","mAllSAPSmo"))
 
 MultiVariateAllSANS_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + Flattening + Avolition + Anhedonia + Attention + Alogia) + set_rescor(rescor=TRUE)
@@ -2958,7 +3025,7 @@ mAllSANS<- brm(MultiVariateAllSANS_f,
           max_treedepth = 20
         ))
 
-mAllSANS <- add_criterion(mAllSANS,criterion="loo",file="models/mAllSANS")
+mAllSANS <- add_criterion(mAllSANS,criterion="loo",file=here("models","mAllSANS"))
 
 MultiVariateAllSANSmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Flattening) + mo(Avolition) + mo(Anhedonia) + mo(Attention) + mo(Alogia)) + set_rescor(rescor=TRUE)
@@ -2968,7 +3035,7 @@ mAllSANSmo <- brm(MultiVariateAllSANSmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAllSANSmo",
+         file = here("models","mAllSANSmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -2976,7 +3043,8 @@ mAllSANSmo <- brm(MultiVariateAllSANSmo_f,
           max_treedepth = 20
         ))
 
-mAllSANSmo <- add_criterion(mAllSANSmo, criterion="loo", file="models/mAllSANSmo")
+mAllSANSmo <- add_criterion(mAllSANSmo, criterion="loo", 
+                            file=here("models","mAllSANSmo"))
 
 MultiVariateAll_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + Hallucinations + Delusions + Bizarre + FormalThought + Flattening + Avolition + Anhedonia + Attention + Alogia) + set_rescor(rescor=TRUE)
@@ -3000,7 +3068,7 @@ mAll<- brm(MultiVariateAll_f,
           max_treedepth = 20
         ))
 
-mAll <- add_criterion(mAll,criterion="loo",file="models/mAll")
+mAll <- add_criterion(mAll,criterion="loo",file=here("models","mAll"))
 
 MultiVariateAllmo_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Hallucinations) + mo(Delusions) + mo(Bizarre) + mo(FormalThought) + mo(Flattening) + mo(Avolition) + mo(Anhedonia) + mo(Attention) + mo(Alogia))
@@ -3010,7 +3078,7 @@ mAllmo <- brm(MultiVariateAllmo_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAllmo",
+         file = here("models","mAllmo"),
          cores = 2,
          chains = 2,
         control = list(
@@ -3018,7 +3086,7 @@ mAllmo <- brm(MultiVariateAllmo_f,
           max_treedepth = 20
         ))
 
-mAllmo <- add_criterion(mAllmo, criterion="loo", file="models/mAllmo")
+mAllmo <- add_criterion(mAllmo, criterion="loo", file=here("models","mAllmo"))
 
 MultiVariateAllmoPLUS_f <- bf(
   mvbind(wSelf, wOther, aSelf, aOther, bConfidence) ~ 1 + mo(Hallucinations) + mo(Delusions) + mo(Bizarre) + mo(FormalThought) + mo(Flattening) + mo(Avolition) + mo(Anhedonia) + mo(Attention) + mo(Alogia) + CPZ + PSP + mo(SANS) + mo(SAPS))
@@ -3028,7 +3096,7 @@ mAllmoPLUS <- brm(MultiVariateAllmoPLUS_f,
          prior = prior,
          sample_prior = T,
          family = gaussian,
-         file = "models/mAllmoPLUS",
+         file = here("models","mAllmoPLUS"),
          cores = 2,
          chains = 2,
         control = list(
@@ -3036,7 +3104,7 @@ mAllmoPLUS <- brm(MultiVariateAllmoPLUS_f,
           max_treedepth = 20
         ))
 
-mAllmoPLUS <- add_criterion(mAllmoPLUS, criterion="loo", file="models/mAllmoPLUS")
+mAllmoPLUS <- add_criterion(mAllmoPLUS, criterion="loo", file=here("models","mAllmoPLUS"))
 ## Compare
 loo_model_weights(mSANS,mSANSmo) # Weight for MO 0.915
 loo_model_weights(mSAPS,mSAPSmo) # Weight for MO 0.867
@@ -3166,7 +3234,7 @@ SymptomsCor_m <- brm(
   cores=2,chains=2,
   iter=8000,
   control=list(adapt_delta=0.99,max_treedepth=20),
-  file = "models/Network_model"
+  file = here("models","Network_model")
 )
 ```
 
@@ -3176,12 +3244,12 @@ SymptomsCor_m <- brm(
 ### Figure 2: Circular inference estimates by diagnosis
 
 ```{r}
-circular_diagnosis_m<-readRDS("models/circular_diagnosis_m.RDS")
-circular_noI_diagnosis_m<-readRDS("models/circular_noI_diagnosis_m.RDS")
-glm_diagnosis_m<-readRDS("models/glm_diagnosis_m.RDS")
-weighted_diagnosis_m<-readRDS("models/weighted_diagnosis_m.RDS")
-naive_diagnosis_m<-readRDS("models/naive_diagnosis_m.RDS")
-heuristic_diagnosis_m<-readRDS("models/Heuristic_diagnosis_m.RDS")
+circular_diagnosis_m<-readRDS(here("models","circular_diagnosis_m.RDS"))
+circular_noI_diagnosis_m<-readRDS(here("models","circular_noI_diagnosis_m.RDS"))
+glm_diagnosis_m<-readRDS(here("models","glm_diagnosis_m.RDS"))
+weighted_diagnosis_m<-readRDS(here("models","weighted_diagnosis_m.RDS"))
+naive_diagnosis_m<-readRDS(here("models","naive_diagnosis_m.RDS"))
+heuristic_diagnosis_m<-readRDS(here("models","Heuristic_diagnosis_m.RDS"))
 ### First generate all posterior samples for loops and weights by matched pair: intercept and diagnosis effect.
 post <- posterior_samples(circular_diagnosis_m)
 
@@ -3448,7 +3516,7 @@ LoopPlot2 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
   theme_classic()
 
 ggarrange(LoopPlot0,LoopPlot1 ,LoopPlot2,ncol=3)
-ggsave("LoopPlots.svg")
+ggsave(here("plots", "LoopPlots.svg"))
 
 
 ## Then with interference
@@ -3483,7 +3551,7 @@ LoopPlot0 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
 ### Figure S3 - Forest plot of weight and loop parameters by participant in CI
 
 ```{r}
-circular_diagnosis_m <- readRDS("models/circular_diagnosis_m.rds")
+circular_diagnosis_m <- readRDS(here("models","circular_diagnosis_m.rds"))
 ### First generate all posterior samples for loops and weights by matched pair: intercept and diagnosis effect.
 post <- posterior_samples(circular_diagnosis_m)
 ### I want a dataset with
@@ -4055,43 +4123,43 @@ xxx$ID <- as.numeric(as.factor(xxx$ID))
 ForestWself <- ggplot(xxx, aes(x = wSelf, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01) + theme_classic() + guides(fill=FALSE)
 
-ggsave(ForestWself, file="ForestWself.svg", width=9,height=9)
+ggsave(ForestWself, file=here("plots","ForestWself.svg"), width=9,height=9)
 
 ForestWothers <- ggplot(xxx, aes(x = wOthers, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01)+theme_classic()
-ggsave(ForestWothers, file="ForestWothers.svg", width=9,height=9)+ guides(fill=FALSE)
+ggsave(ForestWothers, file=here("plots","ForestWothers.svg"), width=9,height=9)+ guides(fill=FALSE)
 
 ForestWothersLow <- ggplot(xxx, aes(x = wOthersLow, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01)+theme_classic()+ guides(fill=FALSE)
-ggsave(ForestWothersLow, file="ForestWothersLow.svg", width=9,height=9)
+ggsave(ForestWothersLow, file=here("plots", "ForestWothersLow.svg"), width=9,height=9)
 
 ForestWothersHigh <- ggplot(xxx, aes(x = wOthersHigh, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01)+theme_classic()+ guides(fill=FALSE)
-ggsave(ForestWothersHigh, file="ForestWothersHigh.svg", width=9,height=9)
+ggsave(ForestWothersHigh, file=here("plots","ForestWothersHigh.svg"), width=9,height=9)
 ForestbConfidence <- ggplot(xxx, aes(x = bConfidence, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01)+theme_classic()+ guides(fill=FALSE)
-ggsave(ForestbConfidence, file="ForestbConfidence.svg", width=9,height=9)
+ggsave(ForestbConfidence, file=here("plots","ForestbConfidence.svg"), width=9,height=9)
 
 ForestAself <- ggplot(xxx, aes(x = aSelf, y = ID, group = ID, fill = Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.02) + theme_classic() + xlim(0, 10) + guides(fill=FALSE)
-ggsave(ForestAself, file="ForestAself.svg", width=9,height=9)
+ggsave(ForestAself, file=here("plots","ForestAself.svg"), width=9,height=9)
 
 ForestAothers <- ggplot(xxx, aes(x = aOthers, y = ID, group=ID,fill=Diagnosis)) +
   geom_density_ridges(rel_min_height = 0.01)+theme_classic() + xlim(0, 10) + guides(fill=FALSE)
-ggsave(ForestAothers, file="ForestAothers.svg", width=9,height=9)
+ggsave(ForestAothers, file=here("plots","ForestAothers.svg"), width=9,height=9)
 
 loops <- ForestAself / ForestAothers 
 weighta <- ForestWself / ForestWothersLow / ForestWothersHigh 
 
 loops | weighta
 
-ggsave(file="ForestAll.svg", width=9,height=15)
+ggsave(file=here("plots","ForestAll.svg"), width=9,height=15)
 ```
 
 ### Figure S4 - CI plot by participant
 
 ```{r}
-circular_diagnosis_m <- readRDS("models/circular_diagnosis_m.rds")
+circular_diagnosis_m <- readRDS(here("models","circular_diagnosis_m.rds"))
 ### First generate all posterior samples for loops and weights by matched pair: intercept and diagnosis effect.
 post <- posterior_samples(circular_diagnosis_m)
 ### Then a dataset with
@@ -4676,7 +4744,7 @@ CI_byS_SO_ctrl <- ggplot(d1,aes(Self,inv.logit(y),color=SocialInformation,group=
 CI_byS_SO_ctrl
 
 ggpubr::ggarrange(CI_byS_SO_schizo,CI_byS_SO_ctrl,common.legend = TRUE, legend='right')
-ggsave(file="CI_byS_SO.svg", width=19,height=15)
+ggsave(file=here("plots","CI_byS_SO.svg"), width=19,height=15)
 
 ## Inverse plots
 d1<-subset(d,Diagnosis==1 & Subject!=134)
@@ -4702,7 +4770,7 @@ CI_byS_OS_ctrl <- ggplot(d1,aes(inv.logit(Others)*4,inv.logit(y),color=Individua
 CI_byS_OS_ctrl
 
 ggpubr::ggarrange(CI_byS_OS_schizo,CI_byS_OS_ctrl,common.legend = TRUE, legend='right')
-ggsave(file="CI_byS_OS.svg", width=15,height=15)
+ggsave(file=here("plots","CI_byS_OS.svg"), width=15,height=15)
 
 
 ```
@@ -4712,14 +4780,14 @@ ggsave(file="CI_byS_OS.svg", width=15,height=15)
 library('igraph')
 
 # Community detection (by optimizing modularity over partitions):
-edges <- read_delim("data/network_edges.csv",delim=",") %>% select(
+edges <- read_delim(here("data","network_edges.csv"), delim=",") %>% select(
   from, to, weight, credible
 ) %>% subset(
   !is.na(weight)
 ) 
 edges <- subset(edges,credible==1 )
 
-nodes <- read_delim("data/network_nodes.csv",delim=",")
+nodes <- read_delim(here("data","network_nodes.csv"), delim=",")
 net <- graph_from_data_frame(d=edges, vertices=nodes, directed=FALSE)
 net <- simplify(net, remove.multiple = FALSE, remove.loops = TRUE) 
 colrs <- c("blue", "tomato", "gold", "purple", "green")
