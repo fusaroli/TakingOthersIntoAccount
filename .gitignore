@@ -2,6 +2,7 @@
 models/
 # Data files (for anonymity issues)
 data/
+scripts/Demographics_for_gumballs.Rmd
 
 # History files
 .Rhistory
