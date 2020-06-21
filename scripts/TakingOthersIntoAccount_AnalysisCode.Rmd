@@ -207,7 +207,7 @@ weighted_diagnosis_m = fit_brm(weighted_diagnosis_f,
                  prior = weighted_prior,
                  sample_prior = TRUE,
                  family = "bernoulli",
-                 file = here("models", "weighted_diagnosis_m"),
+                 #file = here("models", "weighted_diagnosis_m"),
                  chains = N_CORES, cores = N_CORES, iter = ITER,
                  control = STAN_CONTROL)
 
@@ -256,7 +256,7 @@ circular_noI_diagnosis_m = fit_brm(circular_noI_diagnosis_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = here("models", "circular_noI_diagnosis_m"),
+               #file = here("models", "circular_noI_diagnosis_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
@@ -302,7 +302,7 @@ circular_diagnosis_m = fit_brm(circular_diagnosis_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = here("models", "circular_diagnosis_m"),
+               #file = here("models", "circular_diagnosis_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
 
@@ -576,7 +576,7 @@ circular_IQ_m = fit_brm(circular_IQ_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_IQ_m"),
+               #file = here("models","circular_IQ_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,refresh=100,
                control = STAN_CONTROL)
 
@@ -699,7 +699,7 @@ circular_WM_m = fit_brm(circular_WM_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = here("models","circular_WM_m"),
+               #file = here("models","circular_WM_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
@@ -753,7 +753,7 @@ circular_IED_m = fit_brm(circular_IED_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_IED_m"),
+               #file = here("models","circular_IED_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
@@ -833,7 +833,7 @@ circular_Hallucinations_m = fit_brm(circular_Hallucinations_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Hallucinations_m"),
+               #file = here("models","circular_Hallucinations_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -890,7 +890,7 @@ circular_Delusions_m = fit_brm(circular_Delusions_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Delusions_m"),
+               #file = here("models","circular_Delusions_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -946,7 +946,7 @@ circular_Bizarre_m = fit_brm(circular_Bizarre_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Bizarre_m"),
+               #file = here("models","circular_Bizarre_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1003,7 +1003,7 @@ circular_FormalThought_m = fit_brm(circular_FormalThought_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_FormalThought_m"),
+               #file = here("models","circular_FormalThought_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1059,7 +1059,7 @@ circular_Flattening_m = fit_brm(circular_Flattening_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Flattening_m"),
+               #file = here("models","circular_Flattening_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1109,13 +1109,13 @@ circular_prior = c(
 
 d <- subset(full_data,Diagnosis==1)
 
-circular_Alogia_m = brm(circular_Alogia_f,
+circular_Alogia_m = fit_brm(circular_Alogia_f,
                d,
                stan_funs = F_stancode,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Alogia_m"),
+               #file = here("models","circular_Alogia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1170,7 +1170,7 @@ circular_Avolition_m = fit_brm(circular_Avolition_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Avolition_m"),
+               #file = here("models","circular_Avolition_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1226,7 +1226,7 @@ circular_Anhedonia_m = fit_brm(circular_Anhedonia_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Anhedonia_m"),
+               #file = here("models","circular_Anhedonia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1282,7 +1282,7 @@ circular_Attention_m = fit_brm(circular_Attention_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_Attention_m"),
+               #file = here("models","circular_Attention_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1336,7 +1336,7 @@ circular_SANS_m = fit_brm(circular_SANS_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_SANS_m"),
+               #file = here("models","circular_SANS_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=20,
                control = STAN_CONTROL)
 
@@ -1390,7 +1390,7 @@ circular_SAPS_m = fit_brm(circular_SAPS_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_SAPS_m"),
+               #file = here("models","circular_SAPS_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh=100,
                control = STAN_CONTROL)
 
@@ -2083,7 +2083,7 @@ circular_noI_schizophrenia_m = fit_brm(circular_noI_byGroup_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = here("models","circular_noI_schizophrenia_m"),
+               #file = here("models","circular_noI_schizophrenia_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 
@@ -2124,13 +2124,13 @@ circular_prior = c(
   prior(normal(0, .2), nlpar = "bias",class="sd"),
   prior_("lkj(8)", class = "cor"))
 
-circular_schizophrenia_m = brm(circular_f,
+circular_schizophrenia_m = fit_brm(circular_f,
                subset(full_data, Diagnosis==1),
                stan_funs = F_stancode,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli",
-               file = here("models","circular_schizophrenia_m2"),
+               #file = here("models","circular_schizophrenia_m2"),
                chains = N_CORES, cores = N_CORES, iter = ITER, refresh = 20,
                control = STAN_CONTROL)
 circular_schizophrenia_m <- add_criterion(circular_schizophrenia_m,criterion=c("waic","loo","bayes_R2"), file = here("models", "circular_schizophrenia_m2"))
@@ -2141,7 +2141,7 @@ circular_controls_m = fit_brm(circular_f,
                prior = circular_prior,
                sample_prior = TRUE,
                family = "bernoulli", 
-               file = here("models","circular_controls_m"),
+               #file = here("models","circular_controls_m"),
                chains = N_CORES, cores = N_CORES, iter = ITER,
                control = STAN_CONTROL)
 circular_controls_m <- add_criterion(circular_controls_m,
@@ -3227,7 +3227,7 @@ prior <- c(
 
 SymptomsCor_m <- brm(
   SymptomsCor_f0,
-  family=gaussian(),
+  family = gaussian(),
   data = d1,
   prior = prior,
   sample_prior = T,
