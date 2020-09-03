@@ -3366,6 +3366,10 @@ d1 <- d1 %>% mutate(
 d1$Diagnosis[d1$Diagnosis==0]="Control"
 d1$Diagnosis[d1$Diagnosis==1]="Schizophrenia"
 
+library(RColorBrewer)
+# Define the number of colors you want
+mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(16)
+
 CI_bySelf <- ggplot(d1,aes(lSelf,inv.logit(y),color=SocialInformation,group=SocialInformation))+
   geom_line(size=1)+
 #  geom_point(aes(lSelf,Red))+
@@ -3374,7 +3378,8 @@ CI_bySelf <- ggplot(d1,aes(lSelf,inv.logit(y),color=SocialInformation,group=Soci
   xlab("Reds in sample")+
   ylab("Propensity to choose red") +
   scale_x_continuous(breaks=sort(unique(d$lSelf)),labels=seq(1,7,1))+
-  guides(color=FALSE,group=FALSE)
+  guides(color=FALSE,group=FALSE) +
+  scale_color_manual(values = mycolors)
 
 CI_bySelf
 
@@ -3410,13 +3415,15 @@ d2 <- d2 %>% mutate(
 d2$Diagnosis[d2$Diagnosis==0]="Control"
 d2$Diagnosis[d2$Diagnosis==1]="Schizophrenia"
 
+mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(7)
 CI_byOthers <- ggplot(d2,aes(lOthers,inv.logit(y),color=IndividualInformation,group=IndividualInformation))+
   geom_line(size=1)+
   theme_classic()+
   facet_wrap(.~Diagnosis)+
   xlab("Evidence provided by Others")+
   ylab("Propensity to choose red")+
-  guides(color=FALSE,group=FALSE)
+  guides(color=FALSE,group=FALSE) +
+  scale_color_brewer(palette = 'RdYlGn')
 
 CI_byOthers
 

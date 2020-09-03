@@ -357,3 +357,50 @@ brm_fit_from_code <- function (formula, data, code, family = gaussian(), prior =
     }
     x
 }
+
+get_matches <- function(pattern, text, simplify = TRUE, 
+                        first = FALSE, ...) {
+    x <- regmatches(text, gregexpr(pattern, text, ...))
+    if (first) {
+        x <- lapply(x, function(t) if (length(t)) t[1] else t)
+    }
+    if (simplify) {
+        if (first) {
+            x <- lapply(x, function(t) if (length(t)) t else "")
+        }
+        x <- unlist(x)
+    }
+    x
+}
+
+as_one_character <- function(x, allow_na = FALSE) {
+    s <- substitute(x)
+    x <- as.character(x)
+    if (length(x) != 1L || anyNA(x) && !allow_na) {
+        s <- deparse_combine(s, max_char = 100L)
+        stop2("Cannot coerce '", s, "' to a single character value.")
+    }
+    x
+}
+
+check_brmsfit_file <- function(file) {
+    file <- as_one_character(file)
+    file_ending <- tolower(get_matches("\\.[^\\.]+$", file))
+    if (!isTRUE(file_ending == ".rds")) {
+        file <- paste0(file, ".rds")
+    }
+    file
+}
+read_brmsfit <- function(file) {
+    file <- check_brmsfit_file(file)
+    x <- suppressWarnings(try(readRDS(file), silent = TRUE))
+    if (!is(x, "try-error")) {
+        if (!is.brmsfit(x)) {
+            stop2("Object loaded via 'file' is not of class 'brmsfit'.")
+        }
+        x$file <- file
+    } else {
+        x <- NULL
+    }
+    x
+}

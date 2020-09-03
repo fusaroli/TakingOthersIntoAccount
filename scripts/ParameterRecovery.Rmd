@@ -1,0 +1,323 @@
+---
+title: "Parameter Recovery"
+author: "RF"
+date: "8/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(
+  tidyverse,
+  modelr,
+  purrr,
+  truncnorm,
+  boot,
+  cowplot,
+  viridis,
+  boot, 
+  brms, 
+  tidybayes,
+  bayesplot,
+  glue,
+  here)
+source(here("scripts", "fit_simplex_priors.R"))
+```
+
+## Parameter recovery
+
+# We need to simulate new data from a circular inference equation and given parameter values
+# We need to infer those values via model fitting
+# We need to visualize the true and inferred values
+
+```{r Simulate data}
+
+# First we load the original data to extract the exact trials and conditions
+d = read_csv(here("data","data.csv")) 
+
+# Then we identify how many trials per participant
+d %>% group_by(Subject) %>% summarize(n()) # 105
+# Then we extract the sequence of relevant properties of each trial
+d1 <- d %>% subset(
+  Subject == 101
+) %>%
+  select(
+    Self,
+    Others1NoC,
+    Others2NoC,
+    Others3NoC,
+    Others4NoC,
+    Confidence1,
+    Confidence2,
+    Confidence3,
+    Confidence4                               
+  ) %>% mutate(
+    lSelf = logit(Self),
+    lOthers1 = logit(Others1NoC),
+    lOthers2 = logit(Others2NoC),
+    lOthers3 = logit(Others3NoC),
+    lOthers4 = logit(Others4NoC)
+  )
+
+# Define number of participants
+P = 10 
+# Define number of trials
+trials = nrow(d1) 
+
+# Define parameter values
+
+# Simple generation would just generate the parameters from the appropriate distributions
+true_parameters = tibble(
+    wSelf = rtruncnorm(P, .5, 1, .8, .2),
+    wOthers = rtruncnorm(P, .5, 1, .8, .2),
+    aSelf = rtruncnorm(P, 0, Inf, 4, 2),
+    aOthers = rtruncnorm(P, 0, Inf, 4, 2),
+    bConfidence = rtruncnorm(P, 0, Inf, 2, .3),
+    Participant = 1:P,
+    a = 0 # bias
+    )
+# More advanced generation would use tmvtnorm
+
+# alternative method 1: extract actual mean parameter values from real participants
+circular_diagnosis_m <- readRDS(here("models","circular_diagnosis_m.rds"))
+expose_functions(circular_diagnosis_m, vectorize = TRUE)
+wSelfCtrl <- hypothesis(circular_diagnosis_m, "wSelf_Intercept > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+wSelfSz <- hypothesis(circular_diagnosis_m, "wSelf_Intercept + wSelf_Diagnosis > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+wOthersCtrl <- hypothesis(circular_diagnosis_m, "wOthers_Intercept > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+wOthersSz <- hypothesis(circular_diagnosis_m, "wOthers_Intercept + wOthers_Diagnosis > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+aSelfCtrl <- hypothesis(circular_diagnosis_m, "aSelf_Intercept > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+aSelfSz <- hypothesis(circular_diagnosis_m, "aSelf_Intercept + aSelf_Diagnosis > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+aOthersCtrl <- hypothesis(circular_diagnosis_m, "aOthers_Intercept > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+aOthersSz <- hypothesis(circular_diagnosis_m, "aOthers_Intercept + aOthers_Diagnosis > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+bConfidenceCtrl <- hypothesis(circular_diagnosis_m, "bConfidence_Intercept > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+bConfidenceSz <- hypothesis(circular_diagnosis_m, "bConfidence_Intercept + bConfidence_Diagnosis > 0", group="SubjectPair", scope="coef")$hypothesis$Estimate
+Subject <- c(1:80)
+Diagnosis <- c(rep(0, each = 40),  rep(1, each = 40))
+
+true_parameters <- data.frame(Subject = Subject,
+                  Diagnosis = Diagnosis,
+                  wSelf = c(wSelfCtrl, wSelfSz),
+                  wSelf2 = inv_logit_scaled(c(wSelfCtrl, wSelfSz), 0.5, 1),
+                  wOthers = c(wOthersCtrl, wOthersSz),
+                  wOthers2 = inv_logit_scaled(c(wOthersCtrl, wOthersSz), 0.5, 1),
+                  aSelf = c(aSelfCtrl, aSelfSz),
+                  aSelf2 = exp(c(aSelfCtrl, aSelfSz)),
+                  aOthers = c(aOthersCtrl, aOthersSz),
+                  aOthers2 = exp(c(aOthersCtrl, aOthersSz)),
+                  bConfidence = c(bConfidenceCtrl, bConfidenceSz) )
+
+# alternative method 2: generate the actual choices from the real model (w full uncertainty)
+Preds <- predict(circular_diagnosis_m)
+
+# Now I need to generate data from the parameters
+
+# First I need to generate
+
+
+# helper function for the model
+W_f <- function(a_raw, L_raw, w_raw) {
+    # weighting function in R
+    a = exp(a_raw)
+    L = exp(L_raw * a)
+    w = inv_logit_scaled(w_raw, 0.5, 1)
+    log((w * L + 1 - w)/((1 - w) * L + w))
+}
+
+SimulateData <- function(data, parameters, n){
+  
+  lSelf <- data$lSelf 
+  lOthers1 <- data$lOthers1
+  lOthers2 <- data$lOthers2
+  lOthers3 <- data$lOthers3
+  lOthers4 <- data$lOthers4
+  Confidence1 <- data$Confidence1
+  Confidence2 <- data$Confidence2
+  Confidence3 <- data$Confidence3
+  Confidence4 <- data$Confidence4
+  wSelf <- parameters$wSelf
+  wOthers <- parameters$wOthers
+  aSelf <- parameters$aSelf
+  aOthers <- parameters$aOthers
+  bConfidence <- parameters$bConfidence
+  
+  Interference <- W_f(aSelf, lSelf, wSelf) +
+                W_f(aOthers, lOthers1, wOthers + bConfidence * Confidence1) +
+                W_f(aOthers, lOthers2, wOthers + bConfidence * Confidence2) +
+                W_f(aOthers, lOthers3, wOthers + bConfidence * Confidence3) +
+                W_f(aOthers, lOthers4, wOthers + bConfidence * Confidence4) 
+  
+  data$mu <- W_f(0, lSelf + Interference, wSelf) +
+              W_f(0, lOthers1 + Interference, wOthers + bConfidence * Confidence1) +
+              W_f(0, lOthers2 + Interference, wOthers + bConfidence * Confidence2) +
+              W_f(0, lOthers3 + Interference, wOthers + bConfidence * Confidence3) +
+              W_f(0, lOthers4 + Interference, wOthers + bConfidence * Confidence4)
+  
+  data$RedChoice <- ifelse(data$mu > 0, 1, 0)
+  data$Subject <- n
+  return(data)
+}
+
+data <- data.frame(
+  Self = NA,
+  Others1NoC = NA,
+  Others2NoC = NA,
+  Others3NoC = NA,
+  Others4NoC = NA,
+  Confidence1 = NA,
+  Confidence2 = NA,
+  Confidence3 = NA,
+  Confidence4 = NA,
+  lSelf = NA,
+  lOthers1 = NA,
+  lOthers2 = NA,
+  lOthers3 = NA,
+  lOthers4 = NA,
+  mu = NA,
+  RedChoice = NA,
+  Subject = NA
+)
+for (n in 1:nrow(true_parameters)){
+  print(n)
+  parameters <- true_parameters[n,]
+  data <- rbind(data, SimulateData(d1,parameters, n))
+}
+data$Diagnosis <- ifelse(data$Subject < 41, 1, 0)
+```
+
+## Model Fitting
+
+
+```{r Model Fitting}
+# STAN SETTINGS
+N_CORES = 2
+ITER = 5e2
+STAN_CONTROL = list(
+    adapt_delta = .999,
+    max_treedepth = 20)
+
+# preparing the real data (for predictive prior checks)
+
+d <- subset(data, Subject < 6)
+
+# Identifying potential priors for the circular inference model
+
+# normal(0,1) priors on the unbounded scale 
+# for w this correspond to mean = .75
+# for a, it's mean = 1
+
+circular_f = bf(RedChoice ~ bias + 
+                   F(0, lSelf + I, wSelf) +
+                   F(0, lOthers1 + I, wOthers + bConfidence * Confidence1) +
+                   F(0, lOthers2 + I, wOthers + bConfidence * Confidence2) +
+                   F(0, lOthers3 + I, wOthers + bConfidence * Confidence3) +
+                   F(0, lOthers4 + I, wOthers + bConfidence * Confidence4),
+               wSelf + aSelf + wOthers + aOthers + bConfidence + bias ~ 1  + (1 | p | Subject) ,
+               nlf(I ~ F(aSelf, lSelf, wSelf) +
+                          F(aOthers, lOthers1, wOthers + bConfidence * Confidence1) +
+                          F(aOthers, lOthers2, wOthers + bConfidence * Confidence2) +
+                          F(aOthers, lOthers3, wOthers + bConfidence * Confidence3) +
+                          F(aOthers, lOthers4, wOthers + bConfidence * Confidence4)),
+               nl = TRUE)
+
+circular_prior = c(#prior(normal(0,.3), nlpar = "wSelf"),
+                   ###prior(normal(0,.3), nlpar = "wOthers"),
+                   #prior(normal(0,.3), nlpar = "aSelf"),
+                   #prior(normal(0,.3), nlpar = "aOthers"),
+                   #prior(normal(1,.5), nlpar = "bConfidence"),
+                   #prior(normal(0,.1), nlpar = "bias"),
+                   prior(normal(0, .2), nlpar = "bias", coef = "Intercept"),
+                   prior(normal(0,.5), nlpar = "bConfidence", coef = "Intercept"),
+                   #prior(normal(1,1), nlpar = "wSelf", coef = "Intercept"),
+                   prior(normal(-1, 1), nlpar = "wSelf", coef = "Intercept"),
+                   #prior(normal(1,1), nlpar = "wOthers", coef = "Intercept"),
+                   prior(normal(-3, 1), nlpar = "wOthers", coef = "Intercept"),
+                   #prior(normal(0,1), nlpar = "aSelf", coef = "Intercept"),
+                   prior(normal(2, 1), nlpar = "aSelf", coef = "Intercept"),
+                   #prior(normal(0,1), nlpar = "aOthers", coef = "Intercept"),
+                   prior(normal(1, 1), nlpar = "aOthers", coef = "Intercept"),
+                   prior(normal(0, .25), nlpar = "wSelf",class="sd"),
+                   prior(normal(0, .25), nlpar = "wOthers",class="sd"),
+                   prior(normal(0, .25), nlpar = "aSelf",class="sd"),
+                   prior(normal(0, .25), nlpar = "aOthers",class="sd"),
+                   prior(normal(0, .25), nlpar = "bConfidence",class="sd"),
+                   prior(normal(0, .1), nlpar = "bias",class="sd"),
+                   prior_("lkj(8)", class = "cor"))
+
+prior_circular_m = brm(circular_f,
+               subset(data, Subject < 11 | (Subject > 40 & Subject <51)),
+               stan_funs = F_stancode,
+               prior = circular_prior,
+               sample_prior = TRUE,
+               chains = N_CORES, cores = N_CORES, 
+               iter = ITER, 
+               refresh = 50,
+               control = STAN_CONTROL,
+               file = "models/recoveryModel1")
+
+
+
+# extract the parameter eestimates and combine fixed and random effects
+# then transform to the scales we're used to
+samples = posterior_samples(simulated_circular_m)
+brms_results = data.frame(.source = rep("Hierarchical model", P))
+for (p in 1:P) {
+    brms_results[p, "wSelf"] = mean(inv_logit_scaled(
+        samples$b_wSelf_Intercept + samples[[str_c("r_Participant__wSelf[", p, ",Intercept]")]], .5, 1))
+    brms_results[p, "wOthers"] = mean(inv_logit_scaled(
+        samples$b_wOthers_Intercept + samples[[str_c("r_Participant__wOthers[", p, ",Intercept]")]], .5, 1))
+    brms_results[p, "aSelf"] = mean(exp(
+        samples$b_aSelf_Intercept + samples[[str_c("r_Participant__aSelf[", p, ",Intercept]")]]))
+    brms_results[p, "aOthers"] = mean(exp(samples$b_aOthers_Intercept + samples[[str_c("r_Participant__aOthers[", p, ",Intercept]")]]))
+}
+```
+
+## Plots to compare fits
+
+```{r plots to compare models}
+plot_data = mutate(true_parameters, .source = "True data") %>%
+    select(wSelf, wOthers, aSelf, aOthers, .source) %>%
+    rbind(matlab_results) %>%
+    rbind(brms_results) %>%
+    group_by(.source) %>% mutate(i = 1:n()) %>%
+    gather("Parameter", "value", wSelf:aOthers)
+
+# scatterplot comparing data to the fits
+plot_data %>%
+    ggplot(aes(Parameter, value, colour = .source, group = str_c(Parameter, i))) +
+    geom_line(aes(colour = NA), size = .3 ,position = position_dodge(width = .5)) +
+    geom_point(position = position_dodge(width = .5)) +
+    # geom_jitter(position = position_jitterdodge(jitter.width = 0, jitter.height = .2,
+    #                                             dodge.width = .2)) +
+    coord_flip() +
+    labs(x = "", y = "", colour = "") +
+    theme(legend.position = "top", 
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) +
+    facet_wrap(~ Parameter, scales = "free")
+
+# box plot
+plot_data %>%
+    ggplot(aes(.source, value, colour = .source)) +
+    geom_boxplot() +
+    # coord_flip() +
+    labs(x = "", y = "", colour = "") +
+    theme(legend.position = "none") +
+    facet_wrap(~ Parameter, scales = "free")
+
+diff_to_true = plot_data %>%
+    filter(.source != "True data") %>%
+    left_join(gather(mutate(true_parameters, i = 1:n()), "Parameter", "true_value", wSelf:aOthers), by = c("Parameter", "i")) %>%
+    mutate(value = value - true_value)
+
+# plot directly visualising the error (distance to true parameter value)
+diff_to_true %>%
+    ggplot(aes(.source, value, colour = .source)) +
+    geom_hline(aes(yintercept = 0), linetype = "dashed") +
+    # geom_violin(scale = "width") +
+    geom_boxplot() +
+    labs(x = "", y = "", colour = "", title = "Error (difference to true parameter)") +
+    theme(legend.position = "none") +
+    facet_wrap(~ Parameter, scales = "free")
+
+```
