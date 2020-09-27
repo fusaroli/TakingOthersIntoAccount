@@ -86,6 +86,8 @@ full_data = read_csv(here("data","data.csv")) %>%
     IQs = IQ / max(IQ, na.rm = T)
   )
 
+full_data$PSPs_ctrl[full_data$Group==0] <- full_data$PSP[full_data$Group==0]/max(full_data$PSP[full_data$Group==0], na.rm=T)
+
 ```
 
 ## Stan settings
@@ -445,7 +447,13 @@ aSelf <- c(post$b_aSelf_Intercept, post$b_aSelf_Intercept + post$b_aSelf_Diagnos
 aOthers <- c(post$b_aOthers_Intercept, post$b_aOthers_Intercept + post$b_aOthers_Diagnosis)
 Diagnosis <- c(  rep(0,each=8000),  rep(1,each=8000)) 
 xxx <- data.frame(Diagnosis,wSelf,wOthers,aSelf,aOthers,bias,bConfidence)
-Pars <- xxx %>% group_by(Diagnosis) %>% dplyr::summarize(wSelf=mean(wSelf),wOthers=mean(wOthers),aSelf=mean(aSelf),aOthers=mean(aOthers),bias=mean(bias),bConfidence=mean(bConfidence))
+Pars <- xxx %>% group_by(Diagnosis) %>% dplyr::summarize(
+  wSelf = mean(wSelf),
+  wOthers = mean(wOthers),
+  aSelf = mean(aSelf),
+  aOthers = mean(aOthers),
+  bias = mean(bias),
+  bConfidence = mean(bConfidence))
 Pars$wSelf_scale <- inv_logit_scaled(Pars$wSelf, 0.5, 1)
 Pars$wOthers_scale <- inv_logit_scaled(Pars$wOthers + Pars$bConfidence, 0.5, 1)
 Pars$wOthersLowConf_scale <- inv_logit_scaled(Pars$wOthers + (Pars$bConfidence*0.5), 0.5, 1)
@@ -467,6 +475,14 @@ print(Pars[,c("Diagnosis","wSelf_scale","wOthers_scale","wOthersLowConf_scale","
 
 ```{r Cognitive Clinical Models}
 ### TASIT
+dd <- subset(full_data,
+             Diagnosis==0 & complete.cases(full_data[,c(
+               "ChoiceRed", "lSelf", 
+               "lOthers1noC", "lOthers2noC", 
+               "lOthers3noC","lOthers4noC",
+               "Confidence1","Confidence2",
+               "Confidence3","Confidence4","Participant")]))
+
 circular_TasitTotal_f = bf(
   ChoiceRed ~ bias +
     F(0, lSelf + I, wSelf) +
@@ -488,13 +504,13 @@ circular_TasitTotal_f = bf(
 )
 
 circular_prior = c(
-  prior(normal(0, .3), nlpar = "wSelf"),
-  prior(normal(0, .3), nlpar = "wOthers"),
-  prior(normal(0, .3), nlpar = "aSelf"),
-  prior(normal(0, .3), nlpar = "aOthers"),
+  #prior(normal(0, .3), nlpar = "wSelf"),
+  ##prior(normal(0, .3), nlpar = "wOthers"),
+  #prior(normal(0, .3), nlpar = "aSelf"),
+  #prior(normal(0, .3), nlpar = "aOthers"),
   prior(normal(0, .1), nlpar = "bias"),
-  prior(normal(1, 1), nlpar = "wSelf", coef = "Intercept"),
-  prior(normal(1, 1), nlpar = "wOthers", coef = "Intercept"),
+  prior(normal(0, 1), nlpar = "wSelf", coef = "Intercept"),
+  prior(normal(0, 1), nlpar = "wOthers", coef = "Intercept"),
   prior(normal(0, 1), nlpar = "aSelf", coef = "Intercept"),
   prior(normal(0, 1), nlpar = "aOthers", coef = "Intercept"),
   prior(normal(0, .2), coef = "TasitTotal", nlpar = "wSelf"),
@@ -514,6 +530,20 @@ circular_prior = c(
 circular_TasitTotal_m = fit_brm(
   circular_TasitTotal_f,
   subset(full_data, Diagnosis == 1),
+  stan_funs = F_stancode,
+  prior = circular_prior,
+  sample_prior = TRUE,
+  family = "bernoulli",
+  chains = N_CORES,
+  cores = N_CORES,
+  iter = ITER,
+  refresh = 100,
+  control = STAN_CONTROL
+)
+
+circular_TasitTotal_m_ctrl = brm(
+  circular_TasitTotal_f,
+  dd,
   stan_funs = F_stancode,
   prior = circular_prior,
   sample_prior = TRUE,
@@ -584,46 +614,7 @@ circular_IQ_m <- add_criterion(circular_IQ_m,
                                criterion=c("waic","loo","bayes_R2"), 
                                file = here("models","circular_IQ_m"))
 
-# WM model
-circular_WM_f = bf(ChoiceRed ~ bias + 
-                   F(0, lSelf + I, wSelf) +
-                   F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
-                   F(0, lOthers2noC + I, wOthers + bConfidence * Confidence2) +
-                   F(0, lOthers3noC + I, wOthers + bConfidence * Confidence3) +
-                   F(0, lOthers4noC + I, wOthers + bConfidence * Confidence4),
-               wSelf + wOthers + aSelf + aOthers + bConfidence ~ 1 + WM_Errors + (1|p|Participant),
-               bias ~ 1 + (1|Participant),
-               nlf(I ~ F(aSelf, lSelf, wSelf) +
-                          F(aOthers, lOthers1noC, wOthers + bConfidence * Confidence1) +
-                          F(aOthers, lOthers2noC, wOthers + bConfidence * Confidence2) +
-                          F(aOthers, lOthers3noC, wOthers + bConfidence * Confidence3) +
-                          F(aOthers, lOthers4noC, wOthers + bConfidence * Confidence4)),
-               nl = TRUE)
-
-circular_prior = c(
-  prior(normal(0,.3), nlpar = "wSelf"),
-  prior(normal(0,.3), nlpar = "wOthers"),
-  prior(normal(0,.3), nlpar = "aSelf"),
-  prior(normal(0,.3), nlpar = "aOthers"),
-  prior(normal(0,.1), nlpar = "bias"),
-  prior(normal(1,.2), nlpar = "bConfidence"),
-  prior(normal(1,1.5), nlpar = "wSelf", coef = "Intercept"),
-  prior(normal(1,1.5), nlpar = "wOthers", coef = "Intercept"),
-  prior(normal(0,1.5), nlpar = "aSelf", coef = "Intercept"),
-  prior(normal(0,1.5), nlpar = "aOthers", coef = "Intercept"),
-  prior(normal(0,.2), coef="WM_Errors", nlpar = "wSelf"),
-  prior(normal(0,.2), coef="WM_Errors", nlpar = "wOthers"),
-  prior(normal(0,.2), coef="WM_Errors", nlpar = "aSelf"),
-  prior(normal(0,.2), coef="WM_Errors", nlpar = "aOthers"),
-  prior(normal(0,.2), coef="WM_Errors", nlpar = "bConfidence"),
-  prior(normal(0, .2), nlpar = "wSelf",class="sd"),
-  prior(normal(0, .2), nlpar = "wOthers",class="sd"),
-  prior(normal(0, .2), nlpar = "aSelf",class="sd"),
-  prior(normal(0, .2), nlpar = "aOthers",class="sd"),
-  prior(normal(0, .2), nlpar = "bConfidence",class="sd"),
-  prior(normal(0, .2), nlpar = "bias",class="sd"),
-  prior_("lkj(8)", class = "cor"))
-
+# TASIT and IQ
 circular_TasitTotal_IQ_f = bf(
   ChoiceRed ~ bias +
     F(0, lSelf + I, wSelf) +
@@ -692,6 +683,61 @@ circular_TasitTotal_IQ_m <-
     criterion = c("waic", "loo", "bayes_R2"),
     file = here("models","circular_TasitTotal_IQ_m")
   )
+
+circular_TasitTotal_IQ_m_ctrl = brm(
+  circular_TasitTotal_IQ_f,
+  dd,
+  stan_funs = F_stancode,
+  prior = circular_prior,
+  sample_prior = TRUE,
+  family = "bernoulli",
+  chains = N_CORES,
+  cores = N_CORES,
+  iter = ITER,
+  file = "models/circular_TasitTotal_IQ_m_ctrl",
+  refresh = 100,
+  control = STAN_CONTROL
+)
+
+# WM model
+circular_WM_f = bf(ChoiceRed ~ bias + 
+                   F(0, lSelf + I, wSelf) +
+                   F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
+                   F(0, lOthers2noC + I, wOthers + bConfidence * Confidence2) +
+                   F(0, lOthers3noC + I, wOthers + bConfidence * Confidence3) +
+                   F(0, lOthers4noC + I, wOthers + bConfidence * Confidence4),
+               wSelf + wOthers + aSelf + aOthers + bConfidence ~ 1 + WM_Errors + (1|p|Participant),
+               bias ~ 1 + (1|Participant),
+               nlf(I ~ F(aSelf, lSelf, wSelf) +
+                          F(aOthers, lOthers1noC, wOthers + bConfidence * Confidence1) +
+                          F(aOthers, lOthers2noC, wOthers + bConfidence * Confidence2) +
+                          F(aOthers, lOthers3noC, wOthers + bConfidence * Confidence3) +
+                          F(aOthers, lOthers4noC, wOthers + bConfidence * Confidence4)),
+               nl = TRUE)
+
+circular_prior = c(
+  prior(normal(0,.3), nlpar = "wSelf"),
+  prior(normal(0,.3), nlpar = "wOthers"),
+  prior(normal(0,.3), nlpar = "aSelf"),
+  prior(normal(0,.3), nlpar = "aOthers"),
+  prior(normal(0,.1), nlpar = "bias"),
+  prior(normal(1,.2), nlpar = "bConfidence"),
+  prior(normal(1,1.5), nlpar = "wSelf", coef = "Intercept"),
+  prior(normal(1,1.5), nlpar = "wOthers", coef = "Intercept"),
+  prior(normal(0,1.5), nlpar = "aSelf", coef = "Intercept"),
+  prior(normal(0,1.5), nlpar = "aOthers", coef = "Intercept"),
+  prior(normal(0,.2), coef="WM_Errors", nlpar = "wSelf"),
+  prior(normal(0,.2), coef="WM_Errors", nlpar = "wOthers"),
+  prior(normal(0,.2), coef="WM_Errors", nlpar = "aSelf"),
+  prior(normal(0,.2), coef="WM_Errors", nlpar = "aOthers"),
+  prior(normal(0,.2), coef="WM_Errors", nlpar = "bConfidence"),
+  prior(normal(0, .2), nlpar = "wSelf",class="sd"),
+  prior(normal(0, .2), nlpar = "wOthers",class="sd"),
+  prior(normal(0, .2), nlpar = "aSelf",class="sd"),
+  prior(normal(0, .2), nlpar = "aOthers",class="sd"),
+  prior(normal(0, .2), nlpar = "bConfidence",class="sd"),
+  prior(normal(0, .2), nlpar = "bias",class="sd"),
+  prior_("lkj(8)", class = "cor"))
 
 circular_WM_m = fit_brm(circular_WM_f,
                subset(full_data,Diagnosis==1),
@@ -1505,6 +1551,78 @@ circular_PSP_m <- add_criterion(circular_PSP_m,
                                 criterion = c("waic","loo","bayes_R2"), 
                                 file = here("models","circular_PSP_m"))
 
+# PSP and IQ
+circular_PSP_IQ_f = bf(
+  ChoiceRed ~ bias +
+    F(0, lSelf + I, wSelf) +
+    F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
+    F(0, lOthers2noC + I, wOthers + bConfidence * Confidence2) +
+    F(0, lOthers3noC + I, wOthers + bConfidence * Confidence3) +
+    F(0, lOthers4noC + I, wOthers + bConfidence * Confidence4),
+  wSelf + wOthers + aSelf + aOthers + bConfidence ~ 1 + PSPs_ctrl + IQs + (1 |
+                                                                        p | Participant),
+  bias ~ 1 + (1 | Participant),
+  nlf(
+    I ~ F(aSelf, lSelf, wSelf) +
+      F(aOthers, lOthers1noC, wOthers + bConfidence * Confidence1) +
+      F(aOthers, lOthers2noC, wOthers + bConfidence * Confidence2) +
+      F(aOthers, lOthers3noC, wOthers + bConfidence * Confidence3) +
+      F(aOthers, lOthers4noC, wOthers + bConfidence * Confidence4)
+  ),
+  nl = TRUE
+)
+
+circular_prior = c(
+  prior(normal(0, .3), nlpar = "wSelf"),
+  prior(normal(0, .3), nlpar = "wOthers"),
+  prior(normal(0, .3), nlpar = "aSelf"),
+  prior(normal(0, .3), nlpar = "aOthers"),
+  prior(normal(0, .1), nlpar = "bias"),
+  prior(normal(1, 1), nlpar = "wSelf", coef = "Intercept"),
+  prior(normal(1, 1), nlpar = "wOthers", coef = "Intercept"),
+  prior(normal(0, 1), nlpar = "aSelf", coef = "Intercept"),
+  prior(normal(0, 1), nlpar = "aOthers", coef = "Intercept"),
+  prior(normal(0, .2), coef = "PSPs_ctrl", nlpar = "wSelf"),
+  prior(normal(0, .2), coef = "PSPs_ctrl", nlpar = "wOthers"),
+  prior(normal(0, .2), coef = "PSPs_ctrl", nlpar = "aSelf"),
+  prior(normal(0, .2), coef = "PSPs_ctrl", nlpar = "aOthers"),
+  prior(normal(0, .2), coef = "IQs", nlpar = "wSelf"),
+  prior(normal(0, .2), coef = "IQs", nlpar = "wOthers"),
+  prior(normal(0, .2), coef = "IQs", nlpar = "aSelf"),
+  prior(normal(0, .2), coef = "IQs", nlpar = "aOthers"),
+  prior(normal(0, .2), nlpar = "wSelf", class = "sd"),
+  prior(normal(0, .2), nlpar = "wOthers", class = "sd"),
+  prior(normal(0, .2), nlpar = "aSelf", class = "sd"),
+  prior(normal(0, .2), nlpar = "aOthers", class = "sd"),
+  prior(normal(0, .2), nlpar = "bias", class = "sd"),
+  prior(normal(1, .3), nlpar = "bConfidence"),
+  prior(normal(0, .2), nlpar = "bConfidence", class = "sd"),
+  prior_("lkj(5)", class = "cor")
+)
+
+circular_PSP_IQ_m_ctrl = brm(
+  circular_PSP_IQ_f,
+  subset(full_data, Group==0 & !is.na(PSPs_ctrl) & !is.na(IQs)),
+  stan_funs = F_stancode,
+  prior = circular_prior,
+  sample_prior = TRUE,
+  family = "bernoulli",
+  chains = N_CORES,
+  cores = N_CORES,
+  iter = ITER,
+  refresh = 100,
+  control = STAN_CONTROL
+)
+
+circular_PSP_IQ_m <-
+  add_criterion(
+    circular_PSP_IQ_m,
+    criterion = c("waic", "loo", "bayes_R2"),
+    file = here("models","circular_PSP_IQ_m")
+  )
+
+
+
 ```
 
 ## Hypothesis testing to assess the role of clinical and cognitive features
@@ -1512,10 +1630,10 @@ circular_PSP_m <- add_criterion(circular_PSP_m,
 ```{r}
 ## TASIT
 summary(circular_TasitTotal_m)
-hypothesis(circular_IQ_m, "wSelf_TasitTotal < 0")
-hypothesis(circular_IQ_m, "wOthers_TasitTotal > 0")
-hypothesis(circular_IQ_m, "aSelf_TasitTotal < 0")
-hypothesis(circular_IQ_m, "aOthers_TasitTotal > 0")
+hypothesis(circular_TasitTotal_m, "wSelf_TasitTotal < 0")
+hypothesis(circular_TasitTotal_m, "wOthers_TasitTotal > 0")
+hypothesis(circular_TasitTotal_m, "aSelf_TasitTotal < 0")
+hypothesis(circular_TasitTotal_m, "aOthers_TasitTotal > 0")
 
 # Calculate estimates
 post <- posterior_samples(circular_TasitTotal_m)
@@ -3368,7 +3486,7 @@ d1$Diagnosis[d1$Diagnosis==1]="Schizophrenia"
 
 library(RColorBrewer)
 # Define the number of colors you want
-mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(16)
+mycolors <- colorRampPalette(rev(brewer.pal(11, "RdYlGn")))(16)
 
 CI_bySelf <- ggplot(d1,aes(lSelf,inv.logit(y),color=SocialInformation,group=SocialInformation))+
   geom_line(size=1)+
@@ -3415,7 +3533,7 @@ d2 <- d2 %>% mutate(
 d2$Diagnosis[d2$Diagnosis==0]="Control"
 d2$Diagnosis[d2$Diagnosis==1]="Schizophrenia"
 
-mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(7)
+mycolors <- colorRampPalette(rev(brewer.pal(11, "RdYlGn")))(7)
 CI_byOthers <- ggplot(d2,aes(lOthers,inv.logit(y),color=IndividualInformation,group=IndividualInformation))+
   geom_line(size=1)+
   theme_classic()+
@@ -3423,7 +3541,7 @@ CI_byOthers <- ggplot(d2,aes(lOthers,inv.logit(y),color=IndividualInformation,gr
   xlab("Evidence provided by Others")+
   ylab("Propensity to choose red")+
   guides(color=FALSE,group=FALSE) +
-  scale_color_brewer(palette = 'RdYlGn')
+  scale_color_brewer(palette = 'RdYlGn', direction = -1)
 
 CI_byOthers
 
@@ -3485,19 +3603,6 @@ LoopPlot0 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
 
 simD <- expand.grid(x = seq(-3, 3, length.out = 100), 
             w = seq(0.5, 1, .1)) %>%
-        mutate(out = F1(1,x, w),
-               prob = inv.logit(out),
-               evidence= inv.logit(x)) %>%
-        mutate(w = as.factor(w))
-  
-  
-LoopPlot2 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
-  geom_line() + 
-  labs(y = "Probability of choosing red", x="Self") +
-  theme_classic()
-
-simD <- expand.grid(x = seq(-3, 3, length.out = 100), 
-            w = seq(0.5, 1, .1)) %>%
         mutate(out = F1(0,x, w),
                prob = inv.logit(out),
                evidence= inv.logit(x)) %>%
@@ -3511,7 +3616,7 @@ LoopPlot1 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
 
 simD <- expand.grid(x = seq(-3, 3, length.out = 100), 
             w = seq(0.5, 1, .1)) %>%
-        mutate(out = F1(1,x, w),
+        mutate(out = F1(1, x, w),
                prob = inv.logit(out),
                evidence= inv.logit(x)) %>%
         mutate(w = as.factor(w))
@@ -3526,33 +3631,295 @@ ggarrange(LoopPlot0,LoopPlot1 ,LoopPlot2,ncol=3)
 ggsave(here("plots", "LoopPlots.svg"))
 
 
-## Then with interference
-circular_f = bf(ChoiceRed ~ bias + 
-                   F(0, lSelf + I, wSelf) +
-                   F(0, lOthers1noC + I, wOthers + bConfidence * Confidence1) +
-                   F(0, lOthers2noC + I, wOthers + bConfidence * Confidence2) +
-                   F(0, lOthers3noC + I, wOthers + bConfidence * Confidence3) +
-                   F(0, lOthers4noC + I, wOthers + bConfidence * Confidence4),
-               wSelf + wOthers + aSelf + aOthers + bias + bConfidence ~ 1 + (1|p|Participant) ,
-               nlf(I ~ F(aSelf, lSelf, wSelf) +
-                          F(aOthers, lOthers1noC, wOthers + bConfidence * Confidence1) +
-                          F(aOthers, lOthers2noC, wOthers + bConfidence * Confidence2) +
-                          F(aOthers, lOthers3noC, wOthers + bConfidence * Confidence3) +
-                          F(aOthers, lOthers4noC, wOthers + bConfidence * Confidence4)),
-               nl = TRUE)
+## Then with two sources of information
 
-simD <- expand.grid(x = seq(-3, 3, length.out = 100), 
-            w = seq(0.5, 1, .1)) %>%
-        mutate(out = F1(-1,x, w),
-               prob = inv.logit(out),
-               evidence= inv.logit(x)) %>%
-        mutate(w = as.factor(w))
+CI_Clean <- function(aSelf, lSelf, wSelf, aOthers, lOthers, wOthers) {
+  Output = F1(aSelf, lSelf, wSelf) +
+    F1(aOthers, lOthers, wOthers)
+  return(Output)
+}
+
+CI_Interference <- function(aSelf, lSelf, wSelf, aOthers, lOthers, wOthers) {
+  
+  I = F1(aSelf, lSelf, wSelf) + 
+    F1(aOthers, lOthers, wOthers)
+    
+  Output = F1(0, lSelf + I, wSelf) +
+    F1(0, lOthers + I, wOthers)
+  
+  return(Output)
+}
+mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(6)
+
+simD <- expand.grid(
+  lSelf = seq(-3, 3, length.out = 100),
+  wSelf = seq(0.5, 1, .1),
+  aSelf = c(-1, 0, 1),
+  lOthers = c(-1, 1),
+  wOthers = 1,
+  aOthers = 0) %>%
+  mutate(
+    Output = CI_Clean(aSelf, lSelf, wSelf, aOthers, lOthers, wOthers),
+    prob = inv.logit(Output),
+    evidence= inv.logit(lSelf)) %>%
+  mutate(
+    wSelf = as.factor(wSelf),
+    lOthers = as.factor(lOthers))
   
   
-LoopPlot0 <- ggplot(simD,aes(x, prob, colour=w, group=w)) +
+CI_CleanPlot <- simD %>% 
+  mutate(
+    lOthers = ifelse(lOthers == -1, "Other says green", 
+                   ifelse(lOthers == 0, "No info from Other", "Other says red")),
+    lOthers = ordered(lOthers, levels = c("Other says red", "No info from Other", "Other says green")),
+    aSelf = ifelse(aSelf < 0, "Loops below 1", 
+                   ifelse(aSelf == 0, "Loops of 1", "Loops above 1")),
+    aSelf = ordered(aSelf, levels = c("Loops below 1", "Loops of 1", "Loops above 1"))
+    
+    ) %>%
+ggplot(aes(lSelf, prob, colour = wSelf, group = wSelf)) +
   geom_line() + 
   labs(y = "Probability of choosing red", x="Self") +
-  theme_classic()
+  theme_classic() +
+  facet_grid(lOthers ~ aSelf)+
+  xlab("Evidence for red from own sampling")+
+  scale_color_manual(values = mycolors)
+
+
+simD <- expand.grid(
+  lSelf = seq(-3, 3, length.out = 100),
+  wSelf = seq(0.5, 1, .1),
+  aSelf = c(-1, 0, 1),
+  lOthers = c(-1, 1),
+  wOthers = 1,
+  aOthers = 0) %>%
+  mutate(
+    Output = CI_Interference(aSelf, lSelf, wSelf, aOthers, lOthers, wOthers),
+    prob = inv.logit(Output),
+    evidence = inv.logit(lSelf)) %>%
+  mutate(
+    wSelf = as.factor(wSelf),
+    lOthers = as.factor(lOthers))
+
+CI_InterferencePlot <- 
+  simD %>% 
+  mutate(
+    lOthers = ifelse(lOthers == -1, "Other says green", 
+                   ifelse(lOthers == 0, "No info from Other", "Other says red")),
+    lOthers = ordered(lOthers, levels = c("Other says red", "No info from Other", "Other says green")),
+    aSelf = ifelse(aSelf < 0, "Loops below 1", 
+                   ifelse(aSelf == 0, "Loops of 1", "Loops above 1")),
+    aSelf = ordered(aSelf, levels = c("Loops below 1", "Loops of 1", "Loops above 1"))
+    
+    ) %>%
+  ggplot(aes(lSelf, prob, colour = wSelf, group = wSelf)) +
+  geom_line() + 
+  labs(y = "Probability of choosing red", x="Self") +
+  theme_classic() +
+  facet_grid(lOthers ~ aSelf) +
+  xlab("Evidence for red from own sampling")+
+  scale_color_manual(values = mycolors)
+
+library(patchwork)
+CI_CleanPlot + CI_InterferencePlot
+
+
+# Now looking at you S110
+Circular_S110_m <- readRDS(here("models","ByParticipant","Circular_S110_m.rds"))
+CircularNoI_S110_m <- readRDS(here("models","ByParticipant","CircularNoI_S110_m.rds"))
+
+d <- subset(full_data, Subject==110) %>%
+  mutate(Others = 
+           lOthers1NoC * Confidence1 +
+           lOthers2NoC * Confidence2 +
+           lOthers3NoC * Confidence3 +
+           lOthers4NoC * Confidence4)
+
+d1 <- d %>% group_by(Self, Others) %>% summarize(Propensity = mean(ChoiceRed,na.rm=T))
+for (i in 1:nrow(d)){
+  d$Propensity[i] = d1$Propensity[d1$Self==d$Self[i] & d1$Others==d$Others[i]]
+}
+
+d$CINoI <- colMeans(posterior_linpred(CircularNoI_S110_m))
+d$CI <- colMeans(posterior_linpred(Circular_S110_m))
+
+d$SocialInformation <- as.factor(round(d$Others,2))
+levels(d$SocialInformation) <- list(
+  "4 red high confidence" = "8.79", 
+  "3 red high confidence, 1 green low confidence" = "5.49", 
+  "3 red high confidence, 1 green high confidence" = "4.39",
+  "3 red low confidence, 1 green low confidence /n 2 red high confidence, 2 green low confidence"="2.2", 
+  "3 red low confidence, 1 green high confidence"="1.1", 
+  "2 red, 2 green, same confidence"="0", 
+  "3 green low confidence, 1 red high confidence"="-1.1",
+  "3 green low confidence, 1 red low confidence /n 2 green high confidence, 2 red low confidence"="-2.2", 
+  "3 green high confidence, 1 red high confidence"="-4.39", 
+  "3 green high confidence, 1 red low confidence"="-5.49",
+  "4 green high confidence"="-8.79")
+
+## Individual information
+d$IndividualInformation <- as.factor(round(d$Self,2))
+levels(d$IndividualInformation) <- list(
+  "7 red, 1 green" = "0.88", 
+  "6 red, 2 green" = "0.75", 
+  "5 red, 3 green" = "0.62",
+  "4 red, 4 green"="0.5", 
+  "3 red, 5 green"="0.38",
+  "2 red, 6 green" = "0.25",
+  "1 red, 7 green"="0.12")
+
+
+## Plot schizophrenia
+mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(11)
+mycolors0 <- colorRampPalette(brewer.pal(11, "RdYlGn"))(7)
+
+CI_S110_Self_plot <- ggplot(d, 
+                           aes(Self, inv.logit(CI), 
+                               color = SocialInformation, group = SocialInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Self,Propensity,color = SocialInformation))+
+  theme_classic()+
+  xlab("Reds in sample")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors) +
+  theme(legend.position='none')
+
+CI_S110_Others_plot <- ggplot(d, 
+                           aes(Others, inv.logit(CI), 
+                               color = IndividualInformation, group = IndividualInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Others,Propensity,color = IndividualInformation))+
+  theme_classic()+
+  xlab("Evidence for red from others")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors0) +
+  theme(legend.position='none')
+
+CI_NoI_Self_S110_plot <- ggplot(d, 
+                           aes(Self, inv.logit(CINoI), 
+                               color = SocialInformation, group = SocialInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Self,Propensity,color = SocialInformation)) +
+  theme_classic()+
+  xlab("Reds in sample")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors) +
+  theme(legend.position='none')
+
+CI_NoI_Others_S110_plot <- ggplot(d, 
+                           aes(Others, inv.logit(CINoI), 
+                               color = IndividualInformation, group = IndividualInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Others,Propensity,color = IndividualInformation))+
+  theme_classic()+
+  xlab("Evidence for red from others")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors0) +
+  theme(legend.position='none')
+
+CI_S110_Self_plot + CI_NoI_Self_S110_plot
+CI_S110_Others_plot + CI_NoI_Others_S110_plot
+
+# Now looking at you S211
+Circular_S210_m <- readRDS(here("models","ByParticipant","Circular_S210_m.rds"))
+CircularNoI_S210_m <- readRDS(here("models","ByParticipant","CircularNoI_S210_m.rds"))
+
+d <- subset(full_data, Subject==210) %>%
+  mutate(Others = 
+           lOthers1NoC * Confidence1 +
+           lOthers2NoC * Confidence2 +
+           lOthers3NoC * Confidence3 +
+           lOthers4NoC * Confidence4)
+
+d1 <- d %>% group_by(Self, Others) %>% summarize(Propensity = mean(RedChoice,na.rm=T))
+
+for (i in 1:nrow(d)){
+  d$Propensity[i] = d1$Propensity[d1$Self==d$Self[i] & d1$Others==d$Others[i]]
+}
+
+d$CINoI <- colMeans(posterior_linpred(CircularNoI_S210_m))
+d$CI <- colMeans(posterior_linpred(Circular_S210_m))
+
+d$SocialInformation <- as.factor(round(d$Others,2))
+levels(d$SocialInformation) <- list(
+  "4 red high confidence" = "8.79", 
+  "3 red high confidence, 1 green low confidence" = "5.49", 
+  "3 red high confidence, 1 green high confidence" = "4.39",
+  "3 red low confidence, 1 green low confidence /n 2 red high confidence, 2 green low confidence"="2.2", 
+  "3 red low confidence, 1 green high confidence"="1.1", 
+  "2 red, 2 green, same confidence"="0", 
+  "3 green low confidence, 1 red high confidence"="-1.1",
+  "3 green low confidence, 1 red low confidence /n 2 green high confidence, 2 red low confidence"="-2.2", 
+  "3 green high confidence, 1 red high confidence"="-4.39", 
+  "3 green high confidence, 1 red low confidence"="-5.49",
+  "4 green high confidence"="-8.79")
+
+## Individual information
+d$IndividualInformation <- as.factor(round(d$Self,2))
+levels(d$IndividualInformation) <- list(
+  "7 red, 1 green" = "0.88", 
+  "6 red, 2 green" = "0.75", 
+  "5 red, 3 green" = "0.62",
+  "4 red, 4 green"="0.5", 
+  "3 red, 5 green"="0.38",
+  "2 red, 6 green" = "0.25",
+  "1 red, 7 green"="0.12")
+
+
+## Plot schizophrenia
+mycolors <- colorRampPalette(brewer.pal(11, "RdYlGn"))(11)
+mycolors0 <- colorRampPalette(brewer.pal(11, "RdYlGn"))(7)
+
+CI_S210_Self_plot <- ggplot(d, 
+                           aes(Self, inv.logit(CI), 
+                               color = SocialInformation, group = SocialInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Self,Propensity,color = SocialInformation))+
+  theme_classic()+
+  xlab("Reds in sample")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors) +
+  theme(legend.position='none')
+
+CI_S210_Others_plot <- ggplot(d, 
+                           aes(Others, inv.logit(CI), 
+                               color = IndividualInformation, group = IndividualInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Others,Propensity,color = IndividualInformation))+
+  theme_classic()+
+  xlab("Evidence for red from others")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors0) +
+  theme(legend.position='none')
+
+CI_NoI_Self_S210_plot <- ggplot(d, 
+                           aes(Self, inv.logit(CINoI), 
+                               color = SocialInformation, group = SocialInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Self,Propensity,color = SocialInformation)) +
+  theme_classic()+
+  xlab("Reds in sample")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors) +
+  theme(legend.position='none')
+
+CI_NoI_Others_S210_plot <- ggplot(d, 
+                           aes(Others, inv.logit(CINoI), 
+                               color = IndividualInformation, group = IndividualInformation))+
+  geom_smooth(se = FALSE) +
+  geom_point(aes(Others,Propensity,color = IndividualInformation))+
+  theme_classic()+
+  xlab("Evidence for red from others")+
+  ylab("Propensity to choose red")+
+  scale_color_manual(values = mycolors0) +
+  theme(legend.position='none')
+
+(CI_S110_Self_plot + ggtitle('SZ CI') + CI_NoI_Self_S110_plot + ggtitle('SZ CI NoI')) / 
+  (CI_S210_Self_plot + ggtitle('CTRL CI') + CI_NoI_Self_S210_plot + ggtitle('CTRL CI NoI'))
+(CI_S110_Others_plot + ggtitle('SZ CI') + CI_NoI_Others_S110_plot + ggtitle('SZ CI NoI')) / 
+  (CI_S210_Others_plot + ggtitle('CTRL CI') + CI_NoI_Others_S210_plot + ggtitle('CTRL CI NoI'))
+
+unique(d$Propensity)
 ```
 
 ### Figure S3 - Forest plot of weight and loop parameters by participant in CI
